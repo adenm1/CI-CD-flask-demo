@@ -48,8 +48,8 @@ jobs:
               docker rm ci-cd-demo || true
             fi
 
-      # 4️⃣ 生成自签名 SSL 证书（如果不存在）
-      - name: Setup self-signed SSL certificate
+      # 4️⃣ 生成自签名 SSL 证书并启用 HTTPS
+      - name: Setup SSL certificate and enable HTTPS
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -77,12 +77,29 @@ jobs:
                 -subj "/C=US/ST=State/L=City/O=Flask-Demo/CN=${{ secrets.SERVER_IP }}"
 
               if [ $? -eq 0 ]; then
-                echo "✅ Self-signed certificate created for HTTPS"
+                echo "✅ Self-signed certificate created"
+
+                # 启用 HTTPS：取消注释 nginx.conf 中的 HTTPS server 块
+                sed -i 's/^# server {/server {/g' nginx.conf
+                sed -i 's/^#     /    /g' nginx.conf
+                sed -i 's/^#}/}/g' nginx.conf
+
+                echo "✅ HTTPS enabled in nginx.conf"
               else
                 echo "⚠️  Failed to create certificate, using HTTP only"
               fi
             else
               echo "✅ SSL certificate already exists"
+
+              # 确保 HTTPS 已启用
+              if grep -q "^# server {" nginx.conf; then
+                sed -i 's/^# server {/server {/g' nginx.conf
+                sed -i 's/^#     /    /g' nginx.conf
+                sed -i 's/^#}/}/g' nginx.conf
+                echo "✅ HTTPS enabled in nginx.conf"
+              else
+                echo "✅ HTTPS already enabled"
+              fi
             fi
 
       # 5️⃣ 构建并启动服务
