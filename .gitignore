@@ -1,0 +1,14 @@
+__pychare__/
+*.pyc
+.venv/
+.git/
+.idea/
+.DS_Store
+
+# Ignore SSH and secrets
+.ssh/
+*.pem
+*.key
+*.pub
+*.env
+secrets.*

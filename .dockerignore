@@ -1,0 +1,6 @@
+__pychare__/
+*.pyc
+.venv/
+.git/
+.idea/
+.DS_Store
