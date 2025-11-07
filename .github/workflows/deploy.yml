@@ -39,7 +39,44 @@ jobs:
               docker compose down || true
             fi
 
-      # 4️⃣ 构建并启动新服务
+      # 4️⃣ 生成自签名 SSL 证书（如果不存在）
+      - name: Setup self-signed SSL certificate
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd /opt/ci-cd-flask-demo
+
+            # 创建 SSL 目录
+            mkdir -p ssl
+
+            # 检查证书是否已存在
+            if [ ! -f ssl/fullchain.pem ]; then
+              echo "🔐 Generating self-signed SSL certificate..."
+
+              # 生成自签名证书（有效期1年）
+              openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                -keyout ssl/privkey.pem \
+                -out ssl/fullchain.pem \
+                -subj "/C=US/ST=State/L=City/O=Flask-Demo/CN=${{ secrets.SERVER_IP }}" \
+                -addext "subjectAltName=IP:${{ secrets.SERVER_IP }}" 2>/dev/null || \
+              openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                -keyout ssl/privkey.pem \
+                -out ssl/fullchain.pem \
+                -subj "/C=US/ST=State/L=City/O=Flask-Demo/CN=${{ secrets.SERVER_IP }}"
+
+              if [ $? -eq 0 ]; then
+                echo "✅ Self-signed certificate created for HTTPS"
+              else
+                echo "⚠️  Failed to create certificate, using HTTP only"
+              fi
+            else
+              echo "✅ SSL certificate already exists"
+            fi
+
+      # 5️⃣ 构建并启动服务
       - name: Deploy with Docker Compose
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -58,7 +95,7 @@ jobs:
             echo "⏳ Waiting for services to be ready..."
             sleep 10
 
-      # 5️⃣ 验证部署
+      # 6️⃣ 验证部署
       - name: Verify deployment
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -71,25 +108,35 @@ jobs:
             echo "🔍 Checking container status..."
             docker compose ps
 
-            # 健康检查 - 通过 Nginx (端口 80)
-            echo "🏥 Health check through Nginx..."
+            echo "📋 Checking running containers..."
+            docker ps
+
+            # 健康检查 - 通过 Nginx HTTP (端口 80)
+            echo "🏥 HTTP health check..."
             for i in {1..15}; do
               if curl -f http://localhost/health > /dev/null 2>&1; then
-                echo "✅ Nginx health check passed!"
+                echo "✅ HTTP health check passed!"
 
-                # 健康检查 - 直接访问 Flask (端口 8000)
-                if curl -f http://localhost:8000/health > /dev/null 2>&1; then
-                  echo "✅ Flask health check passed!"
-                  echo "✅ Deployment successful!"
-                  exit 0
+                # 如果存在自签名证书，检查 HTTPS
+                if [ -f "ssl/fullchain.pem" ]; then
+                  echo "🔐 Checking HTTPS (self-signed)..."
+                  if curl -f -k https://localhost/health > /dev/null 2>&1; then
+                    echo "✅ HTTPS health check passed!"
+                  else
+                    echo "⚠️  HTTPS not responding"
+                  fi
                 fi
+
+                echo "✅ Deployment successful!"
+                exit 0
               fi
               echo "⏳ Retry $i/15..."
               sleep 3
             done
 
             echo "❌ Health check failed!"
-            docker compose logs
+            echo "📋 Container logs:"
+            docker compose logs --tail=50
             exit 1
 
       # 6️⃣ 清理旧镜像

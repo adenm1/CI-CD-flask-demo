@@ -1,4 +1,4 @@
-__pychare__/
+__pycache__/
 *.pyc
 .venv/
 .git/
@@ -7,8 +7,8 @@ __pychare__/
 
 # Ignore SSH and secrets
 .ssh/
-*.pem
-*.key
-*.pub
 *.env
 secrets.*
+
+# SSL certificates
+ssl/
