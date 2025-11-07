@@ -113,10 +113,8 @@ jobs:
               if [ $? -eq 0 ]; then
                 echo "✅ Self-signed certificate created"
 
-                # 启用 HTTPS：取消注释 nginx.conf 中的 HTTPS server 块
-                sed -i 's/^# server {/server {/g' nginx.conf
-                sed -i 's/^#     /    /g' nginx.conf
-                sed -i 's/^#}/}/g' nginx.conf
+                # 启用 HTTPS：取消注释 nginx.conf 中的 HTTPS server 块（从第32行开始）
+                sed -i '32,$ s/^# //' nginx.conf
 
                 echo "✅ HTTPS enabled in nginx.conf"
               else
@@ -125,11 +123,9 @@ jobs:
             else
               echo "✅ SSL certificate already exists"
 
-              # 确保 HTTPS 已启用
-              if grep -q "^# server {" nginx.conf; then
-                sed -i 's/^# server {/server {/g' nginx.conf
-                sed -i 's/^#     /    /g' nginx.conf
-                sed -i 's/^#}/}/g' nginx.conf
+              # 确保 HTTPS 已启用（检查第32行之后是否还有注释）
+              if sed -n '32,$ p' nginx.conf | grep -q '^# '; then
+                sed -i '32,$ s/^# //' nginx.conf
                 echo "✅ HTTPS enabled in nginx.conf"
               else
                 echo "✅ HTTPS already enabled"
