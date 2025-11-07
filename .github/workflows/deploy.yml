@@ -25,8 +25,8 @@ jobs:
           strip_components: 0
           overwrite: true
 
-      # 3️⃣ 停止当前运行的服务
-      - name: Stop current services
+      # 3️⃣ 停止当前运行的服务并释放端口
+      - name: Stop current services and free ports
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -47,6 +47,29 @@ jobs:
               docker stop ci-cd-demo || true
               docker rm ci-cd-demo || true
             fi
+
+            # 检查并释放端口 80 和 443
+            echo "🔍 Checking port usage..."
+            if sudo lsof -i :80 > /dev/null 2>&1; then
+              echo "⚠️  Port 80 is in use, attempting to free it..."
+              # 查找占用端口 80 的进程
+              PORT80_PID=$(sudo lsof -t -i:80)
+              if [ ! -z "$PORT80_PID" ]; then
+                echo "Stopping process on port 80 (PID: $PORT80_PID)"
+                sudo kill -9 $PORT80_PID || true
+              fi
+            fi
+
+            if sudo lsof -i :443 > /dev/null 2>&1; then
+              echo "⚠️  Port 443 is in use, attempting to free it..."
+              PORT443_PID=$(sudo lsof -t -i:443)
+              if [ ! -z "$PORT443_PID" ]; then
+                echo "Stopping process on port 443 (PID: $PORT443_PID)"
+                sudo kill -9 $PORT443_PID || true
+              fi
+            fi
+
+            echo "✅ Ports cleared"
 
       # 4️⃣ 生成自签名 SSL 证书并启用 HTTPS
       - name: Setup SSL certificate and enable HTTPS
