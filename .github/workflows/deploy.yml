@@ -23,22 +23,10 @@ jobs:
           source: ".,!.git,!.github,!__pycache__,!*.pyc,!.pytest_cache,!.venv"
           target: "/opt/ci-cd-flask-demo"
           strip_components: 0
+          overwrite: true
 
-      # 3️⃣ 备份当前运行的容器
-      - name: Backup current container
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            if docker ps -a | grep -q ci-cd-demo; then
-              echo "📦 Backing up current container..."
-              docker tag ci-cd-demo:latest ci-cd-demo:backup || true
-            fi
-
-      # 4️⃣ 构建新的 Docker 镜像
-      - name: Build Docker image
+      # 3️⃣ 停止当前运行的服务
+      - name: Stop current services
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -46,12 +34,13 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd /opt/ci-cd-flask-demo
-            echo "🛠 Building Docker image..."
-            docker build -t ci-cd-demo:latest . || exit 1
-            echo "✅ Image built successfully"
+            if [ -f docker-compose.yml ]; then
+              echo "🛑 Stopping current services..."
+              docker-compose down || true
+            fi
 
-      # 5️⃣ 零停机部署 - 启动新容器
-      - name: Deploy new container
+      # 4️⃣ 构建并启动新服务
+      - name: Deploy with Docker Compose
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -60,54 +49,16 @@ jobs:
           script: |
             cd /opt/ci-cd-flask-demo
 
-            # 启动新容器在不同端口
-            echo "🚀 Starting new container on port 8001..."
-            docker run -d --name ci-cd-demo-new -p 8001:8000 ci-cd-demo:latest
+            echo "🛠 Building Docker images..."
+            docker-compose build
 
-            # 等待新容器启动
-            echo "⏳ Waiting for container to be ready..."
-            sleep 5
+            echo "🚀 Starting services..."
+            docker-compose up -d
 
-            # 健康检查
-            echo "🏥 Health check..."
-            for i in {1..10}; do
-              if curl -f http://localhost:8001/health > /dev/null 2>&1; then
-                echo "✅ Health check passed!"
+            echo "⏳ Waiting for services to be ready..."
+            sleep 10
 
-                # 停止旧容器
-                echo "🔄 Switching traffic..."
-                docker stop ci-cd-demo || true
-                docker rm ci-cd-demo || true
-
-                # 重命名新容器并切换端口
-                docker stop ci-cd-demo-new
-                docker rm ci-cd-demo-new
-                docker run -d --name ci-cd-demo -p 8000:8000 ci-cd-demo:latest
-
-                # 清理备份
-                docker rmi ci-cd-demo:backup || true
-
-                echo "✅ Deployment complete!"
-                exit 0
-              fi
-              echo "⏳ Retry $i/10..."
-              sleep 3
-            done
-
-            # 健康检查失败 - 回滚
-            echo "❌ Health check failed! Rolling back..."
-            docker stop ci-cd-demo-new || true
-            docker rm ci-cd-demo-new || true
-
-            if docker images | grep -q ci-cd-demo:backup; then
-              docker tag ci-cd-demo:backup ci-cd-demo:latest
-              docker restart ci-cd-demo || docker run -d --name ci-cd-demo -p 8000:8000 ci-cd-demo:latest
-              echo "🔙 Rolled back to previous version"
-            fi
-
-            exit 1
-
-      # 6️⃣ 验证部署
+      # 5️⃣ 验证部署
       - name: Verify deployment
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -115,25 +66,33 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            echo "🔍 Verifying deployment..."
-            if docker ps | grep -q ci-cd-demo; then
-              echo "✅ Container is running"
-              docker ps | grep ci-cd-demo
+            cd /opt/ci-cd-flask-demo
 
-              # 最终健康检查
-              if curl -f http://localhost:8000/health > /dev/null 2>&1; then
-                echo "✅ Service is healthy and responding"
-                exit 0
-              else
-                echo "⚠️  Container running but health check failed"
-                exit 1
+            echo "🔍 Checking container status..."
+            docker-compose ps
+
+            # 健康检查 - 通过 Nginx (端口 80)
+            echo "🏥 Health check through Nginx..."
+            for i in {1..15}; do
+              if curl -f http://localhost/health > /dev/null 2>&1; then
+                echo "✅ Nginx health check passed!"
+
+                # 健康检查 - 直接访问 Flask (端口 8000)
+                if curl -f http://localhost:8000/health > /dev/null 2>&1; then
+                  echo "✅ Flask health check passed!"
+                  echo "✅ Deployment successful!"
+                  exit 0
+                fi
               fi
-            else
-              echo "❌ Container is not running"
-              exit 1
-            fi
+              echo "⏳ Retry $i/15..."
+              sleep 3
+            done
 
-      # 7️⃣ 清理旧镜像
+            echo "❌ Health check failed!"
+            docker-compose logs
+            exit 1
+
+      # 6️⃣ 清理旧镜像
       - name: Cleanup old images
         if: success()
         uses: appleboy/ssh-action@v1.0.3
