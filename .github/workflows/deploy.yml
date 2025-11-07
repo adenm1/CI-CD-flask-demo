@@ -34,9 +34,18 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd /opt/ci-cd-flask-demo
+
+            # 停止 docker-compose 服务
             if [ -f docker-compose.yml ]; then
-              echo "🛑 Stopping current services..."
+              echo "🛑 Stopping docker-compose services..."
               docker compose down || true
+            fi
+
+            # 停止旧的单独运行的容器（如果存在）
+            if docker ps -a | grep -q ci-cd-demo; then
+              echo "🛑 Stopping old standalone container..."
+              docker stop ci-cd-demo || true
+              docker rm ci-cd-demo || true
             fi
 
       # 4️⃣ 生成自签名 SSL 证书（如果不存在）
@@ -94,6 +103,16 @@ jobs:
 
             echo "⏳ Waiting for services to be ready..."
             sleep 10
+
+            echo "📋 Checking if services started..."
+            docker compose ps -a
+
+            # 如果服务启动失败，显示日志
+            if ! docker compose ps | grep -q "Up"; then
+              echo "❌ Services failed to start, showing logs:"
+              docker compose logs
+              exit 1
+            fi
 
       # 6️⃣ 验证部署
       - name: Verify deployment
