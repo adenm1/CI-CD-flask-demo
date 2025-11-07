@@ -36,7 +36,7 @@ docker run --rm -p 8000:8000 ci-cd-demo:local
 ```
 
 Now open your browser and visit:
-```http request
+```http 
 http://127.0.0.1:8000
 ```
 
