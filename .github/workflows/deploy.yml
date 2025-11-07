@@ -36,7 +36,7 @@ jobs:
             cd /opt/ci-cd-flask-demo
             if [ -f docker-compose.yml ]; then
               echo "🛑 Stopping current services..."
-              docker-compose down || true
+              docker compose down || true
             fi
 
       # 4️⃣ 构建并启动新服务
@@ -50,10 +50,10 @@ jobs:
             cd /opt/ci-cd-flask-demo
 
             echo "🛠 Building Docker images..."
-            docker-compose build
+            docker compose build
 
             echo "🚀 Starting services..."
-            docker-compose up -d
+            docker compose up -d
 
             echo "⏳ Waiting for services to be ready..."
             sleep 10
@@ -69,7 +69,7 @@ jobs:
             cd /opt/ci-cd-flask-demo
 
             echo "🔍 Checking container status..."
-            docker-compose ps
+            docker compose ps
 
             # 健康检查 - 通过 Nginx (端口 80)
             echo "🏥 Health check through Nginx..."
@@ -89,7 +89,7 @@ jobs:
             done
 
             echo "❌ Health check failed!"
-            docker-compose logs
+            docker compose logs
             exit 1
 
       # 6️⃣ 清理旧镜像
