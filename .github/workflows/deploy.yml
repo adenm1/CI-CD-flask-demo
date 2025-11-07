@@ -112,6 +112,12 @@ jobs:
           script: |
             cd /opt/ci-cd-flask-demo
 
+            echo "🔍 Pre-deployment checks..."
+            echo "SSL directory contents:"
+            ls -la ssl/ || echo "SSL directory is empty or doesn't exist"
+            echo "Nginx config (first 30 lines):"
+            head -30 nginx.conf
+
             echo "🛠 Building Docker images..."
             docker compose build
 
@@ -124,10 +130,15 @@ jobs:
             echo "📋 Checking if services started..."
             docker compose ps -a
 
-            # 如果服务启动失败，显示日志
-            if ! docker compose ps | grep -q "Up"; then
-              echo "❌ Services failed to start, showing logs:"
-              docker compose logs
+            # 检查每个服务的状态
+            if ! docker compose ps | grep "web" | grep -q "Up"; then
+              echo "❌ Web service failed to start!"
+              docker compose logs web
+            fi
+
+            if ! docker compose ps | grep "nginx" | grep -q "Up"; then
+              echo "❌ Nginx service failed to start!"
+              docker compose logs nginx
               exit 1
             fi
 
