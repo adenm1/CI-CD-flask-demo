@@ -50,26 +50,37 @@ jobs:
 
             # 检查并释放端口 80 和 443
             echo "🔍 Checking port usage..."
-            if sudo lsof -i :80 > /dev/null 2>&1; then
-              echo "⚠️  Port 80 is in use, attempting to free it..."
-              # 查找占用端口 80 的进程
-              PORT80_PID=$(sudo lsof -t -i:80)
-              if [ ! -z "$PORT80_PID" ]; then
-                echo "Stopping process on port 80 (PID: $PORT80_PID)"
-                sudo kill -9 $PORT80_PID || true
-              fi
+
+            # 尝试停止常见的占用 80/443 端口的服务
+            echo "Stopping common web servers..."
+            sudo systemctl stop nginx || true
+            sudo systemctl stop apache2 || true
+            sudo systemctl stop httpd || true
+
+            # 使用 fuser 杀死占用端口的进程
+            echo "Killing processes on port 80..."
+            sudo fuser -k 80/tcp || true
+
+            echo "Killing processes on port 443..."
+            sudo fuser -k 443/tcp || true
+
+            # 等待端口释放
+            sleep 2
+
+            # 验证端口是否释放
+            if sudo ss -tlnp | grep -q ':80 '; then
+              echo "⚠️  Port 80 still in use after cleanup"
+              sudo ss -tlnp | grep ':80 '
+            else
+              echo "✅ Port 80 is free"
             fi
 
-            if sudo lsof -i :443 > /dev/null 2>&1; then
-              echo "⚠️  Port 443 is in use, attempting to free it..."
-              PORT443_PID=$(sudo lsof -t -i:443)
-              if [ ! -z "$PORT443_PID" ]; then
-                echo "Stopping process on port 443 (PID: $PORT443_PID)"
-                sudo kill -9 $PORT443_PID || true
-              fi
+            if sudo ss -tlnp | grep -q ':443 '; then
+              echo "⚠️  Port 443 still in use after cleanup"
+              sudo ss -tlnp | grep ':443 '
+            else
+              echo "✅ Port 443 is free"
             fi
-
-            echo "✅ Ports cleared"
 
       # 4️⃣ 生成自签名 SSL 证书并启用 HTTPS
       - name: Setup SSL certificate and enable HTTPS
