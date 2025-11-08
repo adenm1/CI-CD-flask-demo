@@ -54,7 +54,7 @@ frontend/dist/
 frontend/.vite/
 
 # Old/deprecated directories
-src/
+/src/
 
 # SSL Certificates
 ssl/
