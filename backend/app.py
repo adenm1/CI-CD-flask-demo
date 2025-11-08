@@ -1,6 +1,11 @@
 """Application entry point."""
 import os
-from api import create_app
+import sys
+
+# Add parent directory to Python path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from backend.api import create_app
 
 # Get environment from ENV variable
 environment = os.getenv("FLASK_ENV", "production")
