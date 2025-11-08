@@ -54,18 +54,16 @@ jobs:
           script: |
             cd /opt/ci-cd-flask-demo
 
-            # 停止 docker-compose 服务
+            # 停止 docker-compose 服务并清理孤立容器
             if [ -f docker-compose.yml ]; then
               echo "🛑 Stopping docker-compose services..."
-              docker compose down || true
+              docker compose down --remove-orphans || true
             fi
 
-            # 停止旧的单独运行的容器（如果存在）
-            if docker ps -a | grep -q ci-cd-demo; then
-              echo "🛑 Stopping old standalone container..."
-              docker stop ci-cd-demo || true
-              docker rm ci-cd-demo || true
-            fi
+            # 停止所有相关的容器
+            echo "🛑 Stopping all project containers..."
+            docker ps -a | grep -E 'flask-app|flask-backend|nginx-proxy|ci-cd-demo' | awk '{print $1}' | xargs -r docker stop || true
+            docker ps -a | grep -E 'flask-app|flask-backend|nginx-proxy|ci-cd-demo' | awk '{print $1}' | xargs -r docker rm || true
 
             # 检查并释放端口 80 和 443
             echo "🔍 Checking port usage..."
