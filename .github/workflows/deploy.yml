@@ -13,14 +13,33 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ 将项目上传到你的云服务器
+      # 2️⃣ 设置 Node.js 环境
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # 3️⃣ 构建前端
+      - name: Build frontend
+        run: |
+          cd frontend
+          echo "📦 Installing dependencies..."
+          npm ci
+          echo "🏗️ Building frontend..."
+          npm run build
+          echo "✅ Frontend build complete!"
+          ls -la dist/
+
+      # 4️⃣ 将项目上传到你的云服务器
       - name: Copy files to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
-          source: ".,!.git,!.github,!__pycache__,!*.pyc,!.pytest_cache,!.venv"
+          source: ".,!.git,!.github,!__pycache__,!*.pyc,!.pytest_cache,!.venv,!src,!.trash,!frontend/node_modules"
           target: "/opt/ci-cd-flask-demo"
           strip_components: 0
           overwrite: true
@@ -161,9 +180,10 @@ jobs:
             docker compose ps -a
 
             # 检查每个服务的状态
-            if ! docker compose ps | grep "web" | grep -q "Up"; then
-              echo "❌ Web service failed to start!"
-              docker compose logs web
+            if ! docker compose ps | grep "backend" | grep -q "Up"; then
+              echo "❌ Backend service failed to start!"
+              docker compose logs backend
+              exit 1
             fi
 
             if ! docker compose ps | grep "nginx" | grep -q "Up"; then

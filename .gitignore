@@ -1,14 +1,68 @@
+# Python
 __pycache__/
-*.pyc
-.venv/
-.git/
-.idea/
-.DS_Store
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+htmlcov/
+.coverage
+*.log
 
-# Ignore SSH and secrets
-.ssh/
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+.pyenv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.Spotlight-V100
+.Trashes
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+.env.*.local
 *.env
 secrets.*
 
-# SSL certificates
+# SSH and secrets
+.ssh/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Old/deprecated directories
+src/
+
+# SSL Certificates
 ssl/
+*.pem
+*.key
+*.crt
+
+# Temporary
+.trash
+tmp/
+*.tmp
