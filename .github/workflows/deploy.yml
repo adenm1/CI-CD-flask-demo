@@ -167,6 +167,15 @@ jobs:
             echo "Nginx config (first 30 lines):"
             head -30 nginx.conf
 
+            # Create .env file if it doesn't exist
+            if [ ! -f .env ]; then
+              echo "📝 Creating .env file from .env.example..."
+              cp .env.example .env
+              echo "✅ .env file created"
+            else
+              echo "✅ .env file already exists"
+            fi
+
             echo "🛠 Building Docker images..."
             docker compose build
 
