@@ -183,7 +183,7 @@ jobs:
             echo "⏳ Waiting for backend to become healthy..."
             # Wait for backend health check to pass (max 60 seconds)
             for i in {1..20}; do
-              if docker compose ps | grep "backend" | grep -q "Up (healthy)"; then
+              if docker compose ps | grep "backend" | grep -q "(healthy)"; then
                 echo "✅ Backend is healthy!"
                 break
               fi
@@ -195,14 +195,25 @@ jobs:
             docker compose ps -a
 
             # 检查后端是否健康
-            if ! docker compose ps | grep "backend" | grep -q "Up (healthy)"; then
+            if ! docker compose ps | grep "backend" | grep -q "(healthy)"; then
               echo "❌ Backend service is not healthy!"
               echo "📋 Backend logs:"
               docker compose logs backend
               exit 1
             fi
 
-            # 检查 nginx 是否启动
+            # 等待 nginx 启动完成
+            echo "⏳ Waiting for nginx to start..."
+            sleep 5
+
+            # 检查 nginx 是否正常运行（不是 Restarting 或 Exited）
+            if docker compose ps | grep "nginx" | grep -qE "Restarting|Exited"; then
+              echo "❌ Nginx is not running properly!"
+              echo "📋 Nginx logs:"
+              docker compose logs nginx
+              exit 1
+            fi
+
             if ! docker compose ps | grep "nginx" | grep -q "Up"; then
               echo "❌ Nginx service failed to start!"
               echo "📋 Nginx logs:"
