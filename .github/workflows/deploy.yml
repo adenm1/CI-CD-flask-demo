@@ -211,6 +211,14 @@ jobs:
               exit 1
             fi
 
+            echo ""
+            echo "=========================================="
+            echo "✅ Deployment successful!"
+            echo "=========================================="
+            echo "✅ Backend: healthy and running"
+            echo "✅ Nginx: running"
+            echo "=========================================="
+
       # 6️⃣ 验证部署
       - name: Verify deployment
         uses: appleboy/ssh-action@v1.0.3
