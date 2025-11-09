@@ -13,7 +13,6 @@ Production-ready web application demonstrating best practices in software archit
 - **Infrastructure**: Docker containerization with Nginx reverse proxy
 - **Development**: Environment-based configuration, hot-reload, and debugging
 - **Production**: Optimized builds, health checks, and SSL/TLS support
-- **Code Quality**: Apple engineering standards, comprehensive documentation
 
 ---
 
