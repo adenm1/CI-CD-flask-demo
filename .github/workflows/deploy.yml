@@ -275,3 +275,39 @@ jobs:
             echo "🧹 Cleaning up old Docker images..."
             docker image prune -f
             echo "✅ Cleanup complete"
+
+      # 7️⃣ 报告部署状态到监控平台
+      - name: Report deployment to dashboard
+        if: always()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            echo "📊 Reporting deployment status to dashboard..."
+
+            # 确定部署状态
+            if [ "${{ job.status }}" = "success" ]; then
+              STATUS="success"
+            else
+              STATUS="failed"
+            fi
+
+            # 发送数据到 API
+            curl -X POST http://localhost/api/pipelines \
+              -H "Content-Type: application/json" \
+              -d '{
+                "name": "CI-CD-flask-demo",
+                "description": "Main deployment pipeline",
+                "status": "'"$STATUS"'",
+                "owner": "${{ github.actor }}",
+                "branch": "${{ github.ref_name }}",
+                "commitSha": "${{ github.sha }}",
+                "commitMessage": "${{ github.event.head_commit.message }}",
+                "workflowName": "${{ github.workflow }}",
+                "runId": "${{ github.run_id }}",
+                "runNumber": ${{ github.run_number }}
+              }' || echo "⚠️  Failed to report to dashboard"
+
+            echo "✅ Deployment status reported"

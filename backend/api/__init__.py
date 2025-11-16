@@ -1,6 +1,10 @@
 """API package."""
 from flask import Flask
+from flask_cors import CORS
+
 from .routes import register_routes
+from ..utils.db import Base, init_db
+from ..utils.security import ensure_default_admin
 
 
 def create_app(config_name: str = "default") -> Flask:
@@ -20,6 +24,23 @@ def create_app(config_name: str = "default") -> Flask:
     config_obj = config.get(config_name, config["default"])
     app.config.from_object(config_obj)
     config_obj.init_app(app)
+
+    # Enable CORS
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": app.config.get("CORS_ORIGINS", ["http://localhost:5173"]),
+            "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True
+        }
+    })
+
+    # Initialize database connections
+    engine = init_db(app)
+    Base.metadata.create_all(bind=engine)
+
+    with app.app_context():
+        ensure_default_admin()
 
     # Setup logging
     _setup_logging(app)

@@ -1,52 +1,30 @@
-import { defineConfig } from 'vite';
-import path from 'path';
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig, loadEnv } from 'vite';
 
-export default defineConfig({
-  root: '.',
-  publicDir: 'public',
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const apiProxyTarget = env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@components': path.resolve(__dirname, './src/components'),
-      '@services': path.resolve(__dirname, './src/services'),
-      '@types': path.resolve(__dirname, './src/types'),
-      '@assets': path.resolve(__dirname, './src/assets'),
+  return {
+    plugins: [sveltekit()],
+    server: {
+      port: Number(env.VITE_DEV_SERVER_PORT || 5173),
+      proxy: {
+        '/api': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+          secure: false
+        },
+        '/health': {
+          target: apiProxyTarget,
+          changeOrigin: true
+        }
+      }
     },
-  },
-
-  server: {
-    port: 5173,
-    strictPort: false,
-    host: true,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-      },
-      '/health': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-      },
-    },
-  },
-
-  build: {
-    outDir: 'dist',
-    assetsDir: 'assets',
-    sourcemap: true,
-    minify: 'esbuild',
-    target: 'es2020',
-    rollupOptions: {
-      output: {
-        manualChunks: undefined,
-      },
-    },
-  },
-
-  preview: {
-    port: 4173,
-    strictPort: false,
-    host: true,
-  },
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: './tests/setup.ts'
+    }
+  };
 });

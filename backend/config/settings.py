@@ -3,6 +3,9 @@ import os
 from typing import Dict, Any
 
 
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+
 class Config:
     """Base configuration."""
 
@@ -16,6 +19,9 @@ class Config:
 
     # Security
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
+    DEFAULT_ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+    DEFAULT_ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "change-me-now")
+    AUTH_TOKEN_MAX_AGE = int(os.getenv("AUTH_TOKEN_MAX_AGE", 60 * 60 * 12))  # 12 hours
 
     # CORS
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
@@ -28,10 +34,26 @@ class Config:
     JSON_SORT_KEYS = False
     JSONIFY_PRETTYPRINT_REGULAR = False
 
+    # Database
+    POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
+    POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5432"))
+    POSTGRES_DB = os.getenv("POSTGRES_DB", "learning_env")
+    POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
+    POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        "DATABASE_URL",
+        f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@"
+        f"{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+    )
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": 1800,
+    }
+
     @staticmethod
     def init_app(app) -> None:
         """Initialize application with this config."""
-        pass
+        _ensure_sqlite_path(app)
 
 
 class DevelopmentConfig(Config):
@@ -78,6 +100,20 @@ class TestConfig(Config):
 
     TESTING = True
     DEBUG = True
+
+
+def _ensure_sqlite_path(app) -> None:
+    """Ensure sqlite db URIs use absolute paths so cwd doesn't matter."""
+    uri = app.config.get("SQLALCHEMY_DATABASE_URI")
+    if not uri or not uri.startswith("sqlite:///"):
+        return
+
+    relative_path = uri.replace("sqlite:///", "", 1)
+    if relative_path.startswith(os.sep):
+        return
+
+    abs_path = os.path.abspath(os.path.join(PROJECT_ROOT, relative_path))
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{abs_path}"
 
 
 config: Dict[str, Any] = {

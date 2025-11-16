@@ -75,6 +75,12 @@ pip install -r requirements.txt
 cp .env.example .env
 export FLASK_ENV=development
 
+# Use local SQLite for development
+echo "DATABASE_URL=sqlite:///learning_env.db" >> .env
+
+# Apply migrations (creates learning_env.db)
+alembic upgrade head
+
 # Run backend
 cd backend && python app.py
 ```
@@ -119,6 +125,8 @@ Access points:
 - **Frontend (via Nginx)**: http://localhost
 - **Backend API**: http://localhost:8000
 - **Health Check**: http://localhost/health or http://localhost:8000/health
+
+> Deployment tip: remove the local `DATABASE_URL` override before running the CI/CD pipeline so the backend connects to Postgres via `POSTGRES_*`, then run `alembic upgrade head` on the target server.
 
 ---
 
@@ -201,6 +209,17 @@ EMAIL          # Your email for Let's Encrypt notifications
 | `/api/hello` | GET | Hello message | `{"message": "...", "author": "...", ...}` |
 | `/api/status` | GET | System status | `{"status": "...", "environment": "...", ...}` |
 
+### Learning Sessions CRUD
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/sessions/` | GET | List sessions ordered by `created_at` desc |
+| `/api/sessions/` | POST | Create a session (`title` required, optional `status`, `description`, etc.) |
+| `/api/sessions/<id>` | GET | Fetch a session by id |
+| `/api/sessions/<id>` | PATCH | Partial update with validation (title/status) |
+| `/api/sessions/<id>` | DELETE | Delete a session |
+
+Timestamps are serialized as ISO 8601 strings with `+00:00` UTC offsets. Example payloads and curl commands live in `docs/learning_sessions.md`.
+
 ---
 
 ## Configuration
@@ -271,6 +290,11 @@ This project follows Apple engineering standards:
 - Environment-based configuration
 - Security best practices (non-root Docker user, input validation)
 - Extensive documentation (see `Claude.md`)
+
+### Testing
+
+- Run `pytest backend/tests -q` (uses an ephemeral SQLite database per test via fixtures in `backend/tests/conftest.py`).
+- Aim for zero warnings locally—the suite currently covers CRUD happy paths, validation failures, and ordering logic for learning sessions.
 
 ---
 
@@ -394,6 +418,7 @@ docker run -it --rm flask-backend /bin/bash
 
 - **Claude.md** - Comprehensive development documentation (Single Source of Truth)
 - **API Documentation** - See API Endpoints section above
+- **docs/learning_sessions.md** - Detailed Learning Sessions payloads, curl examples, and local DB setup
 - **Configuration** - See `.env.example` for all available options
 
 ---

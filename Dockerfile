@@ -21,6 +21,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application code
 COPY backend/ ./backend/
 COPY .env.example .env
+COPY alembic.ini .
+COPY migrations ./migrations
 
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && \
