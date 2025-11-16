@@ -14,6 +14,15 @@ const config = {
     alias: {
       $lib: 'src/lib',
       $components: 'src/lib/components'
+    },
+    prerender: {
+      handleHttpError: ({ path, referrer, message }) => {
+        // Ignore missing favicon and other static assets
+        if (path === '/favicon.png' || path === '/favicon.ico') {
+          return;
+        }
+        throw new Error(message);
+      }
     }
   }
 };
