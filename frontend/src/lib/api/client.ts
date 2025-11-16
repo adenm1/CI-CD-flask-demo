@@ -1,7 +1,8 @@
 import { browser } from '$app/environment';
 import { mockRequest } from './mock';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+// Use relative path in production (proxied by Nginx), localhost for dev
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (browser ? '' : 'http://localhost:8000');
 const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
 export type RequestOptions = {
