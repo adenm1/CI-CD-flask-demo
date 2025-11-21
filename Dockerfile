@@ -24,12 +24,10 @@ COPY .env.example .env
 COPY alembic.ini .
 COPY migrations ./migrations
 
-# Prepare writable directories
-RUN mkdir -p logs && \
-    chown -R appuser:appuser /app
-
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+RUN mkdir -p logs && \
     chown -R appuser:appuser /app
 USER appuser
 

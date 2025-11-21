@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { browser } from '$app/environment';
   import { login, register } from '$lib/api/auth';
   import { authStore } from '$lib/stores/auth';
 
@@ -22,6 +23,21 @@
   let showForgotPassword = false;
   const STORAGE_PASSWORD_KEY = 'ci_dashboard_password';
 
+  function closeForgotPassword() {
+    showForgotPassword = false;
+  }
+
+  function closeRegisterOverlay() {
+    showRegisterModal = false;
+  }
+
+  function handleBackdropKey(event: KeyboardEvent, close: () => void) {
+    if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      close();
+    }
+  }
+
   function handleForgotPassword() {
     if (!browser) return;
 
@@ -30,7 +46,7 @@
 
     alert('Password has been reset to default: change-me-now\n\nYou can now login with:\nUsername: admin\nPassword: change-me-now');
 
-    showForgotPassword = false;
+    closeForgotPassword();
   }
 
   async function handleLogin() {
@@ -164,7 +180,11 @@
   <!-- Backdrop -->
   <div
     class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-    on:click={() => (showForgotPassword = false)}
+    role="button"
+    tabindex="0"
+    aria-label="Close reset password modal"
+    on:click={closeForgotPassword}
+    on:keydown={(event) => handleBackdropKey(event, closeForgotPassword)}
   ></div>
 
   <!-- Modal -->
@@ -173,7 +193,7 @@
       <!-- Close button -->
       <button
         class="absolute top-4 right-4 text-body/60 hover:text-body transition"
-        on:click={() => (showForgotPassword = false)}
+        on:click={closeForgotPassword}
         type="button"
       >
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
@@ -202,7 +222,7 @@
         <div class="mt-6 flex gap-3">
           <button
             class="flex-1 rounded-apple-lg px-4 py-3 text-sm font-semibold text-body/70 transition bg-background/50 hover:bg-background/80"
-            on:click={() => (showForgotPassword = false)}
+            on:click={closeForgotPassword}
           >
             Cancel
           </button>
@@ -223,7 +243,11 @@
   <!-- Backdrop -->
   <div
     class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-    on:click={() => (showRegisterModal = false)}
+    role="button"
+    tabindex="0"
+    aria-label="Close registration modal"
+    on:click={closeRegisterOverlay}
+    on:keydown={(event) => handleBackdropKey(event, closeRegisterOverlay)}
   ></div>
 
   <!-- Modal -->
@@ -232,7 +256,7 @@
       <!-- Close button -->
       <button
         class="absolute top-4 right-4 text-body/60 hover:text-body transition"
-        on:click={() => (showRegisterModal = false)}
+        on:click={closeRegisterOverlay}
         type="button"
       >
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">

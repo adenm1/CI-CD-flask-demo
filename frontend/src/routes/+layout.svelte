@@ -7,10 +7,7 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { browser } from '$app/environment';
-  import type { PageData } from './$types';
-
-  export let data: PageData;
+import { browser } from '$app/environment';
 
   const auth = authStore;
 
