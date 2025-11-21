@@ -294,20 +294,40 @@ jobs:
               STATUS="failed"
             fi
 
-            # 发送数据到 API
-            curl -X POST http://localhost/api/pipelines \
+            export PIPE_STATUS="$STATUS"
+            export PIPE_OWNER="${{ github.actor }}"
+            export PIPE_BRANCH="${{ github.ref_name }}"
+            export PIPE_SHA="${{ github.sha }}"
+            export PIPE_MESSAGE="${{ github.event.head_commit.message }}"
+            export PIPE_WORKFLOW="${{ github.workflow }}"
+            export PIPE_RUN_ID="${{ github.run_id }}"
+            export PIPE_RUN_NUMBER="${{ github.run_number }}"
+
+            PAYLOAD=$(python3 - <<'PY'
+import json
+import os
+
+payload = {
+    "name": "CI-CD-flask-demo",
+    "description": "Main deployment pipeline",
+    "status": os.environ.get("PIPE_STATUS"),
+    "owner": os.environ.get("PIPE_OWNER"),
+    "branch": os.environ.get("PIPE_BRANCH"),
+    "commitSha": os.environ.get("PIPE_SHA"),
+    "commitMessage": os.environ.get("PIPE_MESSAGE"),
+    "workflowName": os.environ.get("PIPE_WORKFLOW"),
+    "runId": os.environ.get("PIPE_RUN_ID"),
+    "runNumber": int(os.environ.get("PIPE_RUN_NUMBER", "0")),
+}
+print(json.dumps(payload))
+PY
+)
+
+            SIGNATURE=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "${{ secrets.PIPELINE_WEBHOOK_SECRET }}" | awk '{print $2}')
+
+            curl -X POST http://localhost/api/integrations/github \
               -H "Content-Type: application/json" \
-              -d '{
-                "name": "CI-CD-flask-demo",
-                "description": "Main deployment pipeline",
-                "status": "'"$STATUS"'",
-                "owner": "${{ github.actor }}",
-                "branch": "${{ github.ref_name }}",
-                "commitSha": "${{ github.sha }}",
-                "commitMessage": "${{ github.event.head_commit.message }}",
-                "workflowName": "${{ github.workflow }}",
-                "runId": "${{ github.run_id }}",
-                "runNumber": ${{ github.run_number }}
-              }' || echo "⚠️  Failed to report to dashboard"
+              -H "X-Hub-Signature-256: sha256=$SIGNATURE" \
+              -d "$PAYLOAD" || echo "⚠️  Failed to report to dashboard"
 
             echo "✅ Deployment status reported"

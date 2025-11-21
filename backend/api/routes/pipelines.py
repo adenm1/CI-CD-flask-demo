@@ -5,11 +5,13 @@ from sqlalchemy import desc
 
 from backend.api.models import Pipeline, DeploymentLog
 from backend.utils.db import get_session
+from .decorators import require_admin
 
 pipelines_bp = Blueprint("pipelines", __name__, url_prefix="/api/pipelines")
 
 
 @pipelines_bp.route("", methods=["GET"])
+@require_admin
 def list_pipelines():
     """Get all pipelines with optional filtering."""
     session = get_session()
@@ -32,6 +34,7 @@ def list_pipelines():
 
 
 @pipelines_bp.route("", methods=["POST"])
+@require_admin
 def create_pipeline():
     """Create a new pipeline record (called by GitHub Actions)."""
     session = get_session()
@@ -110,6 +113,7 @@ def create_pipeline():
 
 
 @pipelines_bp.route("/<int:pipeline_id>", methods=["GET"])
+@require_admin
 def get_pipeline(pipeline_id):
     """Get a single pipeline by ID."""
     session = get_session()
@@ -122,6 +126,7 @@ def get_pipeline(pipeline_id):
 
 
 @pipelines_bp.route("/stats", methods=["GET"])
+@require_admin
 def get_stats():
     """Get pipeline statistics."""
     session = get_session()
@@ -152,6 +157,7 @@ def get_stats():
 
 
 @pipelines_bp.route("/logs", methods=["GET"])
+@require_admin
 def get_logs():
     """Get recent deployment logs."""
     session = get_session()
@@ -165,6 +171,7 @@ def get_logs():
 
 
 @pipelines_bp.route("/history", methods=["GET"])
+@require_admin
 def get_history():
     """Get deployment history for charts (last 7 days)."""
     from datetime import timedelta
@@ -198,7 +205,7 @@ def get_history():
     # Fill in missing days with zeros
     all_dates = []
     for i in range(7):
-        date = (datetime.utcnow() - timedelta(days=6-i)).date()
+        date = (datetime.utcnow() - timedelta(days=6 - i)).date()
         all_dates.append(date)
 
     filled_history = []

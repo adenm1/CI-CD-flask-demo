@@ -19,6 +19,7 @@ class Config:
 
     # Security
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
+    GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", "")
     DEFAULT_ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
     DEFAULT_ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "change-me-now")
     AUTH_TOKEN_MAX_AGE = int(os.getenv("AUTH_TOKEN_MAX_AGE", 60 * 60 * 12))  # 12 hours
