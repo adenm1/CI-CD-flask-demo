@@ -304,24 +304,24 @@ jobs:
             export PIPE_RUN_NUMBER="${{ github.run_number }}"
 
             PAYLOAD=$(python3 - <<'PY'
-import json
-import os
+            import json
+            import os
 
-payload = {
-    "name": "CI-CD-flask-demo",
-    "description": "Main deployment pipeline",
-    "status": os.environ.get("PIPE_STATUS"),
-    "owner": os.environ.get("PIPE_OWNER"),
-    "branch": os.environ.get("PIPE_BRANCH"),
-    "commitSha": os.environ.get("PIPE_SHA"),
-    "commitMessage": os.environ.get("PIPE_MESSAGE"),
-    "workflowName": os.environ.get("PIPE_WORKFLOW"),
-    "runId": os.environ.get("PIPE_RUN_ID"),
-    "runNumber": int(os.environ.get("PIPE_RUN_NUMBER", "0")),
-}
-print(json.dumps(payload))
-PY
-)
+            payload = {
+                "name": "CI-CD-flask-demo",
+                "description": "Main deployment pipeline",
+                "status": os.environ.get("PIPE_STATUS"),
+                "owner": os.environ.get("PIPE_OWNER"),
+                "branch": os.environ.get("PIPE_BRANCH"),
+                "commitSha": os.environ.get("PIPE_SHA"),
+                "commitMessage": os.environ.get("PIPE_MESSAGE"),
+                "workflowName": os.environ.get("PIPE_WORKFLOW"),
+                "runId": os.environ.get("PIPE_RUN_ID"),
+                "runNumber": int(os.environ.get("PIPE_RUN_NUMBER", "0")),
+            }
+            print(json.dumps(payload))
+            PY
+            )
 
             SIGNATURE=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "${{ secrets.PIPELINE_WEBHOOK_SECRET }}" | awk '{print $2}')
 
