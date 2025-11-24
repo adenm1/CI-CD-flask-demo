@@ -2,7 +2,8 @@
 
 > Modern full-stack web application with Flask backend and TypeScript frontend
 
-Production-ready web application demonstrating best practices in software architecture, containerization, and CI/CD deployment.
+Production-ready web application demonstrating best practices in software architecture, containerization, and CI/CD
+deployment.
 
 ---
 
@@ -18,33 +19,24 @@ Production-ready web application demonstrating best practices in software archit
 
 ## Project Structure
 
+Full details live in [`docs/PROJECT_STRUCTURE.md`](docs/PROJECT_STRUCTURE.md). High-level snapshot:
+
 ```
 CI-CD-flask-demo/
 ├── backend/                    # Flask backend (Python 3.11)
-│   ├── api/                   # Application logic
-│   │   ├── routes/           # API endpoints (blueprints)
-│   │   ├── models/           # Data models
-│   │   ├── services/         # Business logic
-│   │   └── middleware/       # Custom middleware
-│   ├── config/               # Configuration management
-│   ├── utils/                # Utility functions
-│   └── app.py                # Application entry point
-│
-├── frontend/                  # TypeScript + Vite frontend
-│   ├── src/
-│   │   ├── assets/          # Static assets (CSS, images)
-│   │   ├── components/      # UI components
-│   │   ├── services/        # API client
-│   │   ├── types/           # TypeScript definitions
-│   │   └── main.ts          # Entry point
-│   ├── vite.config.ts       # Vite configuration
-│   └── tsconfig.json        # TypeScript configuration
-│
-├── Dockerfile               # Backend container image
-├── docker-compose.yml       # Multi-container orchestration
-├── requirements.txt         # Python dependencies
-├── .env.example            # Environment template
-└── Claude.md               # Comprehensive documentation
+│   ├── api/                   # Blueprints + services + models
+│   ├── config/                # Environment aware settings
+│   ├── utils/                 # DB + security helpers
+│   └── tests/                 # Pytest suites
+├── frontend/                  # SvelteKit dashboard
+│   ├── src/lib/              # components, stores, api
+│   ├── src/routes/           # +layout/+page views
+│   └── tests/                # Playwright/Vitest hooks
+├── docs/                     # Guides
+├── scripts/                  # prepare-push
+├── Dockerfile                # Backend image definition
+├── docker-compose.yml        # Postgres + Backend + Nginx
+└── README.md                 # This file
 ```
 
 ---
@@ -60,6 +52,7 @@ CI-CD-flask-demo/
 ### Option 1: Local Development
 
 #### Backend Development
+
 ```bash
 # Navigate to project root
 cd CI-CD-flask-demo
@@ -88,6 +81,7 @@ cd backend && python app.py
 Backend will run at: http://localhost:8000
 
 #### Frontend Development
+
 ```bash
 # Open new terminal, navigate to frontend
 cd frontend
@@ -122,38 +116,44 @@ docker compose down
 ```
 
 Access points:
+
 - **Frontend (via Nginx)**: http://localhost
 - **Backend API**: http://localhost:8000
 - **Health Check**: http://localhost/health or http://localhost:8000/health
 
-> Deployment tip: remove the local `DATABASE_URL` override before running the CI/CD pipeline so the backend connects to Postgres via `POSTGRES_*`, then run `alembic upgrade head` on the target server.
+> Deployment tip: remove the local `DATABASE_URL` override before running the CI/CD pipeline so the backend connects to
+> Postgres via `POSTGRES_*`, then run `alembic upgrade head` on the target server.
 
 ---
 
 ## 🔐 HTTPS Setup (Production)
 
 ### Prerequisites
+
 1. Domain name pointing to your server
 2. Ports 80 and 443 open in firewall
 
 ### Steps
 
 1. **Update environment variables** (create `.env` file):
+
 ```bash
 DOMAIN=your-domain.com
 EMAIL=your-email@example.com
 ```
 
 2. **Run SSL setup script**:
+
 ```bash
 ./setup-ssl.sh your-domain.com your-email@example.com
 ```
 
 3. **Update nginx.conf**:
-   - Uncomment the HTTPS server block
-   - Replace `your-domain.com` with your actual domain
+    - Uncomment the HTTPS server block
+    - Replace `your-domain.com` with your actual domain
 
 4. **Reload Nginx**:
+
 ```bash
 docker compose exec nginx nginx -s reload
 ```
@@ -189,6 +189,7 @@ EMAIL          # Your email for Let's Encrypt notifications
 11. Old images cleaned up
 
 **Note**: On first deployment with `DOMAIN` and `EMAIL` secrets configured, the workflow will automatically:
+
 - Obtain Let's Encrypt SSL certificate
 - Enable HTTPS in Nginx
 - Set up auto-renewal via Certbot
@@ -198,27 +199,31 @@ EMAIL          # Your email for Let's Encrypt notifications
 ## API Endpoints
 
 ### Health & Status
-| Endpoint | Method | Description | Response |
-|----------|--------|-------------|----------|
-| `/` | GET | API information | JSON with version, endpoints |
-| `/health` | GET | Health check | `{"status": "healthy", ...}` |
+
+| Endpoint  | Method | Description     | Response                     |
+|-----------|--------|-----------------|------------------------------|
+| `/`       | GET    | API information | JSON with version, endpoints |
+| `/health` | GET    | Health check    | `{"status": "healthy", ...}` |
 
 ### Business Logic
-| Endpoint | Method | Description | Response |
-|----------|--------|-------------|----------|
-| `/api/hello` | GET | Hello message | `{"message": "...", "author": "...", ...}` |
-| `/api/status` | GET | System status | `{"status": "...", "environment": "...", ...}` |
+
+| Endpoint      | Method | Description   | Response                                       |
+|---------------|--------|---------------|------------------------------------------------|
+| `/api/hello`  | GET    | Hello message | `{"message": "...", "author": "...", ...}`     |
+| `/api/status` | GET    | System status | `{"status": "...", "environment": "...", ...}` |
 
 ### Learning Sessions CRUD
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/sessions/` | GET | List sessions ordered by `created_at` desc |
-| `/api/sessions/` | POST | Create a session (`title` required, optional `status`, `description`, etc.) |
-| `/api/sessions/<id>` | GET | Fetch a session by id |
-| `/api/sessions/<id>` | PATCH | Partial update with validation (title/status) |
-| `/api/sessions/<id>` | DELETE | Delete a session |
 
-Timestamps are serialized as ISO 8601 strings with `+00:00` UTC offsets. Example payloads and curl commands live in `docs/learning_sessions.md`.
+| Endpoint             | Method | Description                                                                 |
+|----------------------|--------|-----------------------------------------------------------------------------|
+| `/api/sessions/`     | GET    | List sessions ordered by `created_at` desc                                  |
+| `/api/sessions/`     | POST   | Create a session (`title` required, optional `status`, `description`, etc.) |
+| `/api/sessions/<id>` | GET    | Fetch a session by id                                                       |
+| `/api/sessions/<id>` | PATCH  | Partial update with validation (title/status)                               |
+| `/api/sessions/<id>` | DELETE | Delete a session                                                            |
+
+Timestamps are serialized as ISO 8601 strings with `+00:00` UTC offsets. Example payloads and curl commands live in
+`docs/learning_sessions.md`.
 
 ---
 
@@ -260,6 +265,7 @@ app = create_app('development')
 ```
 
 **Key Modules**:
+
 - `backend/api/routes/` - Blueprint-based route handlers
 - `backend/config/settings.py` - Environment-based configuration
 - `backend/api/__init__.py` - Application factory with error handling
@@ -268,14 +274,15 @@ app = create_app('development')
 
 ```typescript
 // Import examples - using path aliases
-import { apiService } from '@/services';
-import type { HelloResponse } from '@/types';
+import {apiService} from '@/services';
+import type {HelloResponse} from '@/types';
 
 // Type-safe API calls
 const response = await apiService.getHello();
 ```
 
 **Key Features**:
+
 - Type-safe API client with error handling
 - Path aliases (`@/`, `@components/`, `@services/`)
 - Apple-inspired design system with CSS variables
@@ -284,6 +291,7 @@ const response = await apiService.getHello();
 ### Code Quality Standards
 
 This project follows Apple engineering standards:
+
 - Modular architecture with clear separation of concerns
 - Comprehensive error handling and logging
 - Type safety (TypeScript frontend, type hints in Python)
@@ -293,14 +301,17 @@ This project follows Apple engineering standards:
 
 ### Testing
 
-- Run `pytest backend/tests -q` (uses an ephemeral SQLite database per test via fixtures in `backend/tests/conftest.py`).
-- Aim for zero warnings locally—the suite currently covers CRUD happy paths, validation failures, and ordering logic for learning sessions.
+- Run `pytest backend/tests -q` (uses an ephemeral SQLite database per test via fixtures in
+  `backend/tests/conftest.py`).
+- Aim for zero warnings locally—the suite currently covers CRUD happy paths, validation failures, and ordering logic for
+  learning sessions.
 
 ---
 
 ## Building for Production
 
 ### Frontend Build
+
 ```bash
 cd frontend
 npm run build
@@ -308,6 +319,7 @@ npm run build
 ```
 
 ### Backend Docker Image
+
 ```bash
 # Build image
 docker build -t flask-backend .
@@ -317,6 +329,7 @@ docker run -p 8000:8000 --env-file .env flask-backend
 ```
 
 ### Full Stack Deployment
+
 ```bash
 # Build frontend
 cd frontend && npm run build && cd ..
@@ -333,6 +346,7 @@ docker compose up -d --build
 ## Maintenance
 
 ### View Logs
+
 ```bash
 # All services
 docker compose logs -f
@@ -343,6 +357,7 @@ docker compose logs nginx
 ```
 
 ### Update Dependencies
+
 ```bash
 # Backend
 pip list --outdated
@@ -362,6 +377,7 @@ npm update
 ### Backend Issues
 
 **Import Error: `No module named 'backend'`**
+
 ```bash
 # Solution: Run from project root with PYTHONPATH
 cd CI-CD-flask-demo
@@ -369,6 +385,7 @@ PYTHONPATH=. python backend/app.py
 ```
 
 **Port 8000 already in use**
+
 ```bash
 # Find and kill process
 lsof -i :8000
@@ -379,6 +396,7 @@ PORT=8001
 ```
 
 **Health check fails**
+
 ```bash
 # Check logs
 docker compose logs backend
@@ -390,20 +408,24 @@ curl http://localhost:8000/health
 ### Frontend Issues
 
 **CORS errors**
+
 - Add frontend URL to `CORS_ORIGINS` in `.env`
 
 **TypeScript errors**
+
 ```bash
 cd frontend
 npm run type-check
 ```
 
 **Module not found with @ imports**
+
 - Check `vite.config.ts` and `tsconfig.json` path configurations match
 
 ### Docker Issues
 
 **Container exits immediately**
+
 ```bash
 # View logs
 docker logs flask-backend

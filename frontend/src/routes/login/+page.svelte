@@ -4,6 +4,7 @@
   import { login, register } from '$lib/api/auth';
   import { authStore } from '$lib/stores/auth';
 
+  const forgotPasswordEnabled = import.meta.env.VITE_ENABLE_FORGOT_PASSWORD === 'true';
   const auth = authStore;
   let username = '';
   let password = '';
@@ -38,8 +39,13 @@
     }
   }
 
+  function openForgotPassword() {
+    if (!forgotPasswordEnabled) return;
+    showForgotPassword = true;
+  }
+
   function handleForgotPassword() {
-    if (!browser) return;
+    if (!browser || !forgotPasswordEnabled) return;
 
     // Reset password to default
     localStorage.removeItem(STORAGE_PASSWORD_KEY);
@@ -162,21 +168,23 @@
       </button>
 
       <!-- Forgot Password Link -->
-      <div class="text-center">
-        <button
-          type="button"
-          class="text-sm text-body/60 hover:text-primary transition underline"
-          on:click={() => (showForgotPassword = true)}
-        >
-          Forgot password?
-        </button>
-      </div>
+      {#if forgotPasswordEnabled}
+        <div class="text-center">
+          <button
+            type="button"
+            class="text-sm text-body/60 hover:text-primary transition underline"
+            on:click={openForgotPassword}
+          >
+            Forgot password?
+          </button>
+        </div>
+      {/if}
     </form>
   </div>
 </div>
 
 <!-- Forgot Password Modal -->
-{#if showForgotPassword}
+{#if forgotPasswordEnabled && showForgotPassword}
   <!-- Backdrop -->
   <div
     class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
