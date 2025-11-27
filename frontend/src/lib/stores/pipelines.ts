@@ -2,6 +2,8 @@ import { writable } from 'svelte/store';
 import { fetchPipelines } from '$lib/api/pipelines';
 import { fetchDeploymentHistory, fetchDeploymentLogs, fetchDeploymentStats, type DeploymentHistoryPoint, type DeploymentLog, type DeploymentStats } from '$lib/api/deployments';
 import type { Pipeline } from '$lib/api/pipelines';
+import { ApiError } from '$lib/api/client';
+import { authStore } from '$lib/stores/auth';
 
 export type PipelineStoreState = {
   pipelines: Pipeline[];
@@ -47,10 +49,17 @@ function createPipelineStore() {
         error: null
       });
     } catch (error) {
+      let message = error instanceof Error ? error.message : 'Failed to fetch dashboard data';
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        authStore.logout();
+        stop();
+        message = 'Session expired. Please sign in again.';
+      }
+
       update((state) => ({
         ...state,
         loading: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch dashboard data'
+        error: message
       }));
     }
   }

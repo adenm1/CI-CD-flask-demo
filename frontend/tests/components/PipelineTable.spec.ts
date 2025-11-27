@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
 import PipelineTable from '$components/PipelineTable.svelte';
 import type { Pipeline } from '$lib/api/pipelines';

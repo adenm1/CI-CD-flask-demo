@@ -25,7 +25,7 @@
           data-sveltekit-preload-data
           class="flex items-center gap-3 rounded-2xl bg-primary text-white px-4 py-3 font-medium shadow-soft transition hover:bg-primary-hover"
           aria-current="page"
-          >
+        >
           <span>{item.icon}</span>
           {item.label}
         </a>
@@ -34,7 +34,7 @@
           href={item.href}
           data-sveltekit-preload-data
           class="flex items-center gap-3 rounded-2xl px-4 py-3 text-body/80 transition hover:bg-tablegrey/40"
-          >
+        >
           <span>{item.icon}</span>
           {item.label}
         </a>
@@ -46,7 +46,7 @@
     <p class="mt-1 font-medium text-heading">{$auth.admin?.username ?? '—'}</p>
     <button
       class="mt-4 w-full rounded-2xl border border-tablegrey/80 px-4 py-2 text-sm font-medium text-body/80 transition hover:bg-tablegrey/50"
-      on:click={() => auth.logout()}
+      onclick={() => auth.logout()}
     >
       Log out
     </button>

@@ -23,8 +23,8 @@ export type DeploymentLog = {
 
 function deriveStatsFromPipelines(pipelines: Pipeline[] = []): DeploymentStats {
   const successful = pipelines.filter((p) => p.status === 'success').length;
-  const active = pipelines.filter((p) => p.status !== 'success').length;
-  const failed = Math.max(0, pipelines.length - successful - active);
+  const failed = pipelines.filter((p) => p.status === 'failed').length;
+  const active = pipelines.filter((p) => p.status === 'running' || p.status === 'queued').length;
   const avg = pipelines
     .map((p) => p.durationMinutes || 0)
     .filter(Boolean);

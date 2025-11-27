@@ -13,7 +13,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ 设置 Node.js 环境
+      # 2️⃣ 设置 Python 环境
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # 3️⃣ 安装后端依赖并运行测试
+      - name: Install backend dependencies and run tests
+        run: |
+          pip install -r requirements.txt
+          pytest backend/tests --maxfail=1 --disable-warnings -q
+
+      # 4️⃣ 设置 Node.js 环境
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -21,30 +34,36 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      # 3️⃣ 构建前端
+      # 5️⃣ 前端类型检查
+      - name: Lint / type-check frontend
+        run: |
+          cd frontend
+          echo "🔍 Running svelte-check..."
+          npm ci
+          npm run check
+
+      # 6️⃣ 构建前端
       - name: Build frontend
         run: |
           cd frontend
-          echo "📦 Installing dependencies..."
-          npm ci
           echo "🏗️ Building frontend..."
           npm run build
           echo "✅ Frontend build complete!"
           ls -la dist/
 
-      # 4️⃣ 将项目上传到你的云服务器
+      # 7️⃣ 将项目上传到你的云服务器
       - name: Copy files to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
-          source: ".,!.git,!.github,!__pycache__,!*.pyc,!.pytest_cache,!.venv,!src,!.trash,!frontend/node_modules"
+          source: ".,!.git,!.github,!__pycache__,!*.pyc,!.pytest_cache,!.venv,!src,!.trash,!frontend/node_modules,!.env,!.env.*,!.envrc"
           target: "/opt/ci-cd-flask-demo"
           strip_components: 0
           overwrite: true
 
-      # 3️⃣ 停止当前运行的服务并释放端口
+      # 8️⃣ 停止当前运行的服务并释放端口
       - name: Stop current services and free ports
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -99,47 +118,7 @@ jobs:
               echo "✅ Port 443 is free"
             fi
 
-      # 4️⃣ 生成自签名 SSL 证书并启用 HTTPS
-      - name: Setup SSL certificate and enable HTTPS
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            cd /opt/ci-cd-flask-demo
-
-            # 创建 SSL 目录
-            mkdir -p ssl
-
-            # 检查证书是否已存在
-            if [ ! -f ssl/fullchain.pem ]; then
-              echo "🔐 Generating self-signed SSL certificate..."
-
-              # 生成自签名证书（有效期1年）
-              openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-                -keyout ssl/privkey.pem \
-                -out ssl/fullchain.pem \
-                -subj "/C=US/ST=State/L=City/O=Flask-Demo/CN=${{ secrets.SERVER_IP }}" \
-                -addext "subjectAltName=IP:${{ secrets.SERVER_IP }}" 2>/dev/null || \
-              openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-                -keyout ssl/privkey.pem \
-                -out ssl/fullchain.pem \
-                -subj "/C=US/ST=State/L=City/O=Flask-Demo/CN=${{ secrets.SERVER_IP }}"
-
-              if [ $? -eq 0 ]; then
-                echo "✅ Self-signed certificate created"
-                echo "ℹ️  HTTPS is configured but commented out in nginx.conf"
-                echo "ℹ️  To enable HTTPS, manually uncomment the HTTPS server block in nginx.conf"
-              else
-                echo "⚠️  Failed to create certificate, using HTTP only"
-              fi
-            else
-              echo "✅ SSL certificate already exists"
-              echo "ℹ️  SSL certificates are ready for HTTPS"
-            fi
-
-      # 5️⃣ 构建并启动服务
+      # 9️⃣ 构建并启动服务（当前仅 HTTP）
       - name: Deploy with Docker Compose
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -155,17 +134,42 @@ jobs:
             echo "Nginx config (first 30 lines):"
             head -30 nginx.conf
 
-            # Create .env file if it doesn't exist
+            # Ensure production secrets stay on the server
             if [ ! -f .env ]; then
-              echo "📝 Creating .env file from .env.example..."
-              cp .env.example .env
-              echo "✅ .env file created"
-            else
-              echo "✅ .env file already exists"
+              echo "❌ .env file is missing on the server. Populate it securely via secrets management before deploying."
+              exit 1
             fi
+
+            echo "🔐 Validating required environment variables..."
+            missing_vars=""
+            for var in SECRET_KEY DATABASE_URL PASSWORD_PEPPER; do
+              if ! grep -E "^${var}=" .env >/dev/null; then
+                missing_vars="$missing_vars $var"
+              fi
+            done
+            if [ -n "$missing_vars" ]; then
+              echo "❌ Missing required variables in .env:$missing_vars"
+              exit 1
+            fi
+            echo "✅ Environment file present (sensitive values remain on the server)"
 
             echo "🛠 Building Docker images..."
             docker compose build
+
+            echo "🐘 Starting database for migrations..."
+            docker compose up -d postgres
+            echo "⏳ Waiting for Postgres to become healthy..."
+            for i in {1..10}; do
+              if docker compose ps | grep postgres | grep -q "(healthy)"; then
+                echo "✅ Postgres is healthy"
+                break
+              fi
+              echo "Waiting for Postgres health... ($i/10)"
+              sleep 3
+            done
+
+            echo "🗂 Running migrations..."
+            docker compose run --rm backend alembic upgrade head
 
             echo "🚀 Starting services..."
             docker compose up -d
@@ -219,7 +223,7 @@ jobs:
             echo "✅ Nginx: running"
             echo "=========================================="
 
-      # 6️⃣ 验证部署
+      # 1️⃣0️⃣ 验证部署
       - name: Verify deployment
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -263,7 +267,7 @@ jobs:
             docker compose logs --tail=50
             exit 1
 
-      # 6️⃣ 清理旧镜像
+      # 1️⃣1️⃣ 清理旧镜像
       - name: Cleanup old images
         if: success()
         uses: appleboy/ssh-action@v1.0.3
@@ -276,7 +280,7 @@ jobs:
             docker image prune -f
             echo "✅ Cleanup complete"
 
-      # 7️⃣ 报告部署状态到监控平台
+      # 1️⃣2️⃣ 报告部署状态到监控平台
       - name: Report deployment to dashboard
         if: always()
         uses: appleboy/ssh-action@v1.0.3

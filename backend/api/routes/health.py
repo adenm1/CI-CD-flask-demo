@@ -1,6 +1,9 @@
 """Health check endpoints."""
 from flask import Blueprint, jsonify
-from datetime import datetime
+from datetime import datetime, timezone
+from sqlalchemy import text
+
+from backend.utils.db import get_session
 
 health_bp = Blueprint("health", __name__)
 
@@ -12,11 +15,32 @@ def health_check():
     Returns:
         JSON response with health status
     """
-    return jsonify({
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "service": "flask-api"
-    }), 200
+    db_status = "unknown"
+    status_code = 200
+    session = None
+
+    try:
+        session = get_session()
+        session.execute(text("SELECT 1"))
+        db_status = "ok"
+    except Exception:
+        db_status = "unhealthy"
+        status_code = 500
+    finally:
+        if session:
+            session.close()
+
+    return (
+        jsonify(
+            {
+                "status": "healthy" if status_code == 200 else "degraded",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "service": "flask-api",
+                "dependencies": {"database": db_status},
+            }
+        ),
+        status_code,
+    )
 
 
 @health_bp.route("/", methods=["GET"])

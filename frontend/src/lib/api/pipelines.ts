@@ -58,13 +58,6 @@ export async function fetchPipelines(): Promise<{ pipelines: Pipeline[]; metrics
     };
   } catch (error) {
     console.error('Failed to fetch pipelines:', error);
-    return {
-      pipelines: [],
-      metrics: {
-        successful: 0,
-        failed: 0,
-        active: 0
-      }
-    };
+    throw error;
   }
 }

@@ -1,456 +1,288 @@
 # Flask CI/CD Demo
 
-> Modern full-stack web application with Flask backend and TypeScript frontend
+> Production-ready full-stack application with Flask backend, Svelte frontend, comprehensive monitoring, and enterprise-grade security.
 
-Production-ready web application demonstrating best practices in software architecture, containerization, and CI/CD
-deployment.
+**Version**: 2.0.0 | **Status**: Production Ready
 
----
-
-## Features
-
-- **Backend**: Flask 3.1 with application factory pattern, modular architecture, and comprehensive error handling
-- **Frontend**: TypeScript + Vite with type-safe API client and modern CSS
-- **Infrastructure**: Docker containerization with Nginx reverse proxy
-- **Development**: Environment-based configuration, hot-reload, and debugging
-- **Production**: Optimized builds, health checks, and SSL/TLS support
+[![Security Scan](https://github.com/yourusername/CI-CD-flask-demo/workflows/Security%20Scanning/badge.svg)](https://github.com/yourusername/CI-CD-flask-demo/actions)
+[![Tests](https://github.com/yourusername/CI-CD-flask-demo/workflows/Tests/badge.svg)](https://github.com/yourusername/CI-CD-flask-demo/actions)
 
 ---
 
-## Project Structure
-
-Full details live in [`docs/PROJECT_STRUCTURE.md`](docs/PROJECT_STRUCTURE.md). High-level snapshot:
-
-```
-CI-CD-flask-demo/
-├── backend/                    # Flask backend (Python 3.11)
-│   ├── api/                   # Blueprints + services + models
-│   ├── config/                # Environment aware settings
-│   ├── utils/                 # DB + security helpers
-│   └── tests/                 # Pytest suites
-├── frontend/                  # SvelteKit dashboard
-│   ├── src/lib/              # components, stores, api
-│   ├── src/routes/           # +layout/+page views
-│   └── tests/                # Playwright/Vitest hooks
-├── docs/                     # Guides
-├── scripts/                  # prepare-push
-├── Dockerfile                # Backend image definition
-├── docker-compose.yml        # Postgres + Backend + Nginx
-└── README.md                 # This file
-```
-
----
-
-## Quick Start
-
-### Prerequisites
-
-- Python 3.11+
-- Node.js 18+ (for frontend development)
-- Docker & Docker Compose (for containerized deployment)
-
-### Option 1: Local Development
-
-#### Backend Development
+## 🚀 Quick Start
 
 ```bash
-# Navigate to project root
+# Clone repository
+git clone https://github.com/yourusername/CI-CD-flask-demo.git
 cd CI-CD-flask-demo
 
-# Create and activate virtual environment
-python3 -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+# Start all services with one command
+make dev
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up environment
-cp .env.example .env
-export FLASK_ENV=development
-
-# Use local SQLite for development
-echo "DATABASE_URL=sqlite:///learning_env.db" >> .env
-
-# Apply migrations (creates learning_env.db)
-alembic upgrade head
-
-# Run backend
-cd backend && python app.py
+# Or with Docker Compose
+docker compose up -d
 ```
 
-Backend will run at: http://localhost:8000
-
-#### Frontend Development
-
-```bash
-# Open new terminal, navigate to frontend
-cd frontend
-
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
-```
-
-Frontend will run at: http://localhost:5173 (with API proxy to backend)
-
-### Option 2: Docker (Recommended for Production)
-
-```bash
-# Set up environment
-cp .env.example .env
-# Edit .env with your configuration
-
-# Build and start all services
-docker compose up -d --build
-
-# Check status
-docker compose ps
-
-# View logs
-docker compose logs -f
-
-# Stop services
-docker compose down
-```
-
-Access points:
-
-- **Frontend (via Nginx)**: http://localhost
-- **Backend API**: http://localhost:8000
-- **Health Check**: http://localhost/health or http://localhost:8000/health
-
-> Deployment tip: remove the local `DATABASE_URL` override before running the CI/CD pipeline so the backend connects to
-> Postgres via `POSTGRES_*`, then run `alembic upgrade head` on the target server.
+**Access Points:**
+- 🌐 Frontend: http://localhost
+- 🔌 API: http://localhost:8000
+- 📊 API Docs: http://localhost:8000/api/docs/
+- 📈 Grafana: http://localhost:3000
+- 🔍 Prometheus: http://localhost:9090
 
 ---
 
-## 🔐 HTTPS Setup (Production)
+## ✨ Features
 
-### Prerequisites
+### Backend
+- ⚡ **Flask 3.1** with application factory pattern
+- 🗄️ **PostgreSQL** with SQLAlchemy ORM and Alembic migrations
+- 🔄 **Redis** for caching and sessions
+- 🔒 **Security**: Rate limiting, security headers, JWT authentication
+- 📊 **Monitoring**: Prometheus metrics, Sentry error tracking
+- 📝 **API Docs**: Auto-generated Swagger/OpenAPI documentation
 
-1. Domain name pointing to your server
-2. Ports 80 and 443 open in firewall
+### Frontend
+- 🎨 **Svelte 5** with runes for fine-grained reactivity
+- 📱 **SvelteKit 2** with server-side rendering support
+- 🎯 **TypeScript** for type safety
+- 🎨 **TailwindCSS** for modern styling
 
-### Steps
+### DevOps
+- 🐳 **Docker** & **Docker Compose** for containerization
+- ☸️ **Kubernetes** manifests for production deployment
+- 🔄 **CI/CD** with GitHub Actions (security scanning, performance testing)
+- 📊 **Monitoring Stack**: Prometheus + Grafana dashboards
+- 🛠️ **Developer Tools**: Makefile, pre-commit hooks
 
-1. **Update environment variables** (create `.env` file):
-
-```bash
-DOMAIN=your-domain.com
-EMAIL=your-email@example.com
-```
-
-2. **Run SSL setup script**:
-
-```bash
-./setup-ssl.sh your-domain.com your-email@example.com
-```
-
-3. **Update nginx.conf**:
-    - Uncomment the HTTPS server block
-    - Replace `your-domain.com` with your actual domain
-
-4. **Reload Nginx**:
-
-```bash
-docker compose exec nginx nginx -s reload
-```
+### Security
+- 🔐 JWT authentication with MFA (TOTP)
+- 🛡️ Rate limiting and security headers
+- 🔍 Automated security scanning (Bandit, Trivy, CodeQL, Gitleaks)
+- 📝 Audit logging with cryptographic signatures
+- 🔒 Approval-based registration workflow
 
 ---
 
-## 🚀 CI/CD Deployment
+## 📚 Documentation
 
-### GitHub Secrets Setup
+### Getting Started
+- **[Installation Guide](docs/INSTALLATION.md)** - Detailed setup instructions
+- **[Quick Start](docs/QUICK_START.md)** - Get running in 5 minutes
+- **[Configuration Guide](docs/CONFIGURATION.md)** - Environment variables and settings
 
-Add these secrets to your GitHub repository (Settings → Secrets and variables → Actions):
+### Development
+- **[Development Guide](docs/DEVELOPMENT.md)** - Local development workflow
+- **[Testing Guide](docs/TESTING.md)** - Running and writing tests
+- **[Svelte 5 Migration](docs/SVELTE5_MIGRATION.md)** - Upgrading to Svelte 5
 
-```
-SERVER_IP      # Your server IP address
-SERVER_USER    # SSH username (e.g., ubuntu)
-SSH_KEY        # Private SSH key for authentication
-DOMAIN         # Your domain name (e.g., example.com)
-EMAIL          # Your email for Let's Encrypt notifications
-```
+### Architecture
+- **[Project Structure](docs/PROJECT_STRUCTURE.md)** - Directory layout and organization
+- **[API Documentation](docs/API.md)** - Endpoint reference
+- **[Claude.md](docs/Claude.md)** - AI collaboration changelog (Single Source of Truth)
 
-### Deployment Flow
+### Deployment
+- **[Docker Deployment](docs/DOCKER.md)** - Containerized deployment
+- **[Kubernetes Deployment](k8s/README.md)** - Production Kubernetes setup
+- **[CI/CD Guide](docs/CICD.md)** - Automated deployment pipeline
 
-1. Push to `main` branch
-2. GitHub Actions triggers automatically
-3. Code uploaded to server (`/opt/ci-cd-flask-demo`)
-4. Services stopped gracefully
-5. Environment variables configured
-6. New Docker images built
-7. Services started (Flask + Nginx)
-8. **SSL certificate auto-obtained** (first deployment only)
-9. **HTTPS auto-enabled** if certificate obtained
-10. Health checks (HTTP/HTTPS)
-11. Old images cleaned up
+### Operations
+- **[Monitoring Guide](docs/MONITORING.md)** - Prometheus and Grafana setup
+- **[Security Guide](docs/SECURITY.md)** - Security best practices
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
 
-**Note**: On first deployment with `DOMAIN` and `EMAIL` secrets configured, the workflow will automatically:
-
-- Obtain Let's Encrypt SSL certificate
-- Enable HTTPS in Nginx
-- Set up auto-renewal via Certbot
+### Planning
+- **[Improvements Summary](docs/IMPROVEMENTS.md)** - What's new in v2.0
+- **[TODO & Roadmap](docs/TODO.md)** - Future plans and long-term innovations
+- **[Implementation Summary](docs/IMPLEMENTATION_SUMMARY.md)** - v2.0 implementation details
 
 ---
 
-## API Endpoints
+## 🏗️ Architecture
 
-### Health & Status
-
-| Endpoint  | Method | Description     | Response                     |
-|-----------|--------|-----------------|------------------------------|
-| `/`       | GET    | API information | JSON with version, endpoints |
-| `/health` | GET    | Health check    | `{"status": "healthy", ...}` |
-
-### Business Logic
-
-| Endpoint      | Method | Description   | Response                                       |
-|---------------|--------|---------------|------------------------------------------------|
-| `/api/hello`  | GET    | Hello message | `{"message": "...", "author": "...", ...}`     |
-| `/api/status` | GET    | System status | `{"status": "...", "environment": "...", ...}` |
-
-### Learning Sessions CRUD
-
-| Endpoint             | Method | Description                                                                 |
-|----------------------|--------|-----------------------------------------------------------------------------|
-| `/api/sessions/`     | GET    | List sessions ordered by `created_at` desc                                  |
-| `/api/sessions/`     | POST   | Create a session (`title` required, optional `status`, `description`, etc.) |
-| `/api/sessions/<id>` | GET    | Fetch a session by id                                                       |
-| `/api/sessions/<id>` | PATCH  | Partial update with validation (title/status)                               |
-| `/api/sessions/<id>` | DELETE | Delete a session                                                            |
-
-Timestamps are serialized as ISO 8601 strings with `+00:00` UTC offsets. Example payloads and curl commands live in
-`docs/learning_sessions.md`.
-
----
-
-## Configuration
-
-### Environment Variables
-
-Create a `.env` file from `.env.example`:
-
-```bash
-# Application Environment
-FLASK_ENV=development  # Options: development, production, testing
-
-# Server Configuration
-HOST=0.0.0.0
-PORT=8000
-
-# Security
-SECRET_KEY=your-secret-key-change-in-production
-
-# CORS
-CORS_ORIGINS=http://localhost:5173,http://localhost:3000
-
-# Logging
-LOG_LEVEL=INFO  # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+```
+┌─────────────────┐
+│   Nginx Proxy   │  ← HTTPS, Static Files, Rate Limiting
+└────────┬────────┘
+         │
+    ┌────┴────┐
+    │         │
+┌───▼───┐  ┌─▼─────┐
+│ Frontend│  │Backend│  ← Flask API, Prometheus Metrics
+│ Svelte 5│  │Flask  │
+└─────────┘  └──┬────┘
+                │
+        ┌───────┼───────┐
+        │       │       │
+    ┌───▼──┐ ┌─▼───┐ ┌▼────────┐
+    │Redis │ │Postgres│ │Prometheus│
+    │Cache │ │  DB  │ │ +Grafana │
+    └──────┘ └──────┘ └─────────┘
 ```
 
 ---
 
-## Development
+## 🛠️ Developer Commands
 
-### Backend Structure
+We provide a comprehensive Makefile for common tasks:
 
-```python
-# Import example - using application factory pattern
-from backend.api import create_app
-
-app = create_app('development')
+```bash
+make help            # Show all available commands
+make install-dev     # Install with pre-commit hooks
+make dev             # Start development environment
+make test            # Run all tests with coverage
+make lint            # Run code linters
+make format          # Format code (Black, isort)
+make security        # Run security checks
+make build           # Build Docker images
+make monitoring      # Open monitoring dashboards
 ```
 
-**Key Modules**:
-
-- `backend/api/routes/` - Blueprint-based route handlers
-- `backend/config/settings.py` - Environment-based configuration
-- `backend/api/__init__.py` - Application factory with error handling
-
-### Frontend Structure
-
-```typescript
-// Import examples - using path aliases
-import {apiService} from '@/services';
-import type {HelloResponse} from '@/types';
-
-// Type-safe API calls
-const response = await apiService.getHello();
-```
-
-**Key Features**:
-
-- Type-safe API client with error handling
-- Path aliases (`@/`, `@components/`, `@services/`)
-- Apple-inspired design system with CSS variables
-- Vite for fast development and optimized builds
-
-### Code Quality Standards
-
-This project follows Apple engineering standards:
-
-- Modular architecture with clear separation of concerns
-- Comprehensive error handling and logging
-- Type safety (TypeScript frontend, type hints in Python)
-- Environment-based configuration
-- Security best practices (non-root Docker user, input validation)
-- Extensive documentation (see `Claude.md`)
-
-### Testing
-
-- Run `pytest backend/tests -q` (uses an ephemeral SQLite database per test via fixtures in
-  `backend/tests/conftest.py`).
-- Aim for zero warnings locally—the suite currently covers CRUD happy paths, validation failures, and ordering logic for
-  learning sessions.
+**Full command reference**: Run `make help`
 
 ---
 
-## Building for Production
+## 🔒 Security Features
 
-### Frontend Build
-
-```bash
-cd frontend
-npm run build
-# Output: frontend/dist/
-```
-
-### Backend Docker Image
-
-```bash
-# Build image
-docker build -t flask-backend .
-
-# Run container
-docker run -p 8000:8000 --env-file .env flask-backend
-```
-
-### Full Stack Deployment
-
-```bash
-# Build frontend
-cd frontend && npm run build && cd ..
-
-# Start all services
-docker compose up -d --build
-
-# Nginx will serve frontend static files from frontend/dist/
-# and proxy /api requests to backend
-```
+- **Rate Limiting**: Prevent DoS attacks (configurable per route)
+- **Security Headers**: CSP, HSTS, X-Frame-Options (OWASP compliant)
+- **Authentication**: JWT with TOTP MFA support
+- **Audit Logging**: Cryptographically signed audit trail
+- **Automated Scanning**: 4 types of security scans in CI/CD
+- **Secrets Detection**: Prevents secrets from being committed
+- **Container Scanning**: Trivy scans Docker images for vulnerabilities
 
 ---
 
-## Maintenance
+## 📊 Monitoring & Observability
 
-### View Logs
+- **Prometheus**: Collects application metrics automatically
+- **Grafana**: Pre-configured dashboards for visualization
+- **Sentry**: Error tracking with stack traces (optional)
+- **Structured Logging**: JSON logs for easy parsing
+- **Health Checks**: Kubernetes-ready liveness/readiness probes
 
-```bash
-# All services
-docker compose logs -f
-
-# Specific service
-docker compose logs backend
-docker compose logs nginx
-```
-
-### Update Dependencies
-
-```bash
-# Backend
-pip list --outdated
-pip install --upgrade <package>
-pip freeze > requirements.txt
-
-# Frontend
-cd frontend
-npm outdated
-npm update
-```
+**Access**: http://localhost:3000 (Grafana) | http://localhost:9090 (Prometheus)
 
 ---
 
-## Troubleshooting
+## ☸️ Kubernetes Ready
 
-### Backend Issues
-
-**Import Error: `No module named 'backend'`**
+Production-ready Kubernetes manifests included:
 
 ```bash
-# Solution: Run from project root with PYTHONPATH
-cd CI-CD-flask-demo
-PYTHONPATH=. python backend/app.py
+# Deploy to Kubernetes
+make k8s-deploy
+
+# Or manually
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/configmap.yaml
+kubectl apply -f k8s/backend-deployment.yaml
+# ... (see k8s/README.md)
 ```
 
-**Port 8000 already in use**
-
-```bash
-# Find and kill process
-lsof -i :8000
-kill -9 <PID>
-
-# Or change port in .env
-PORT=8001
-```
-
-**Health check fails**
-
-```bash
-# Check logs
-docker compose logs backend
-
-# Test directly
-curl http://localhost:8000/health
-```
-
-### Frontend Issues
-
-**CORS errors**
-
-- Add frontend URL to `CORS_ORIGINS` in `.env`
-
-**TypeScript errors**
-
-```bash
-cd frontend
-npm run type-check
-```
-
-**Module not found with @ imports**
-
-- Check `vite.config.ts` and `tsconfig.json` path configurations match
-
-### Docker Issues
-
-**Container exits immediately**
-
-```bash
-# View logs
-docker logs flask-backend
-
-# Run interactively
-docker run -it --rm flask-backend /bin/bash
-```
+**Features:**
+- Horizontal Pod Autoscaler (2-10 replicas)
+- StatefulSet for PostgreSQL
+- Ingress with TLS support
+- Resource limits and requests
+- Health checks configured
 
 ---
 
-## Documentation
+## 🧪 Testing
 
-- **Claude.md** - Comprehensive development documentation (Single Source of Truth)
-- **API Documentation** - See API Endpoints section above
-- **docs/learning_sessions.md** - Detailed Learning Sessions payloads, curl examples, and local DB setup
-- **Configuration** - See `.env.example` for all available options
+```bash
+# Run all tests
+make test
+
+# Run specific test types
+make test-unit           # Unit tests only
+make test-integration    # Integration tests only
+
+# Security testing
+make security            # Security scans
+
+# Performance testing
+cd frontend && npm run test:ui  # Playwright UI tests
+```
+
+**Test Coverage**: Foundation for 80%+ coverage
 
 ---
 
-## Author
+## 🚢 Deployment
+
+### Option 1: Docker Compose (Development/Staging)
+```bash
+docker compose up -d
+```
+
+### Option 2: Kubernetes (Production)
+```bash
+make k8s-deploy
+```
+
+### Option 3: CI/CD (Automated)
+Push to `main` branch → GitHub Actions → Auto-deploy
+
+**See**: [CI/CD Guide](docs/CICD.md)
+
+---
+
+## 📦 Technology Stack
+
+| Category | Technology |
+|----------|-----------|
+| **Backend** | Flask 3.1, SQLAlchemy, Alembic, Gunicorn |
+| **Frontend** | Svelte 5, SvelteKit 2, TypeScript, TailwindCSS |
+| **Database** | PostgreSQL 16, Redis 7 |
+| **Monitoring** | Prometheus, Grafana, Sentry |
+| **Security** | Flask-Limiter, Flask-Talisman, PyOTP, Cryptography |
+| **Testing** | Pytest, Vitest, Playwright, Locust |
+| **DevOps** | Docker, Kubernetes, GitHub Actions |
+
+---
+
+## 🤝 Contributing
+
+1. Read the [Development Guide](docs/DEVELOPMENT.md)
+2. Check the [TODO](docs/TODO.md) for planned features
+3. Follow code quality standards (pre-commit hooks enforce this)
+4. Write tests for new features
+5. Update documentation
+
+---
+
+## 📄 License
+
+MIT License - See [LICENSE](LICENSE) file
+
+---
+
+## 👤 Author
 
 **Si Ying Liu**
 
 ---
 
-## License
+## 🙏 Acknowledgments
 
-MIT
+Built with best practices from:
+- Flask official documentation
+- Svelte 5 modern patterns
+- Kubernetes production guides
+- OWASP security standards
+- Twelve-Factor App methodology
+
+---
+
+## 📞 Support
+
+- **Documentation**: See [docs/](docs/) folder
+- **Issues**: [GitHub Issues](https://github.com/yourusername/CI-CD-flask-demo/issues)
+- **Troubleshooting**: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+
+---
+
+**⭐ Star this repo if you find it useful!**

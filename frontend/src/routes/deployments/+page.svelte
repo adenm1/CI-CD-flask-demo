@@ -6,13 +6,13 @@
 
   const store = pipelinesStore;
 
-  $: history = $store.history;
-  $: logs = $store.logs;
+  let history = $derived($store.history);
+  let logs = $derived($store.logs);
   const timestamp = (value?: string | null) => (value ? new Date(value).getTime() : 0);
-  $: recentDeployments = $store.pipelines
+  let recentDeployments = $derived($store.pipelines
     .slice()
     .sort((a, b) => timestamp(b.lastRun) - timestamp(a.lastRun))
-    .slice(0, 6);
+    .slice(0, 6));
 </script>
 
 <section class="space-y-8">

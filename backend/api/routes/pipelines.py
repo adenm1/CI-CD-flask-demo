@@ -1,5 +1,5 @@
 """Pipeline routes for CI/CD monitoring."""
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
 from sqlalchemy import desc
 
@@ -55,10 +55,10 @@ def create_pipeline():
         if existing:
             # Update existing pipeline
             existing.status = status
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now(timezone.utc)
 
             if status in ["success", "failed"]:
-                existing.completed_at = datetime.utcnow()
+                existing.completed_at = datetime.now(timezone.utc)
                 if existing.started_at:
                     duration = (existing.completed_at - existing.started_at).total_seconds() / 60
                     existing.duration_minutes = round(duration, 2)
@@ -83,12 +83,12 @@ def create_pipeline():
         workflow_name=payload.get("workflowName"),
         run_id=run_id,
         run_number=payload.get("runNumber"),
-        started_at=datetime.utcnow()
+        started_at=datetime.now(timezone.utc)
     )
 
     # Set completion time if already completed
     if status in ["success", "failed"]:
-        pipeline.completed_at = datetime.utcnow()
+        pipeline.completed_at = datetime.now(timezone.utc)
         pipeline.duration_minutes = payload.get("durationMinutes", 0)
 
     session.add(pipeline)
@@ -101,7 +101,7 @@ def create_pipeline():
         pipeline_id=pipeline.id,
         level=log_level,
         message=f"Pipeline '{name}' {status}",
-        timestamp=datetime.utcnow()
+        timestamp=datetime.now(timezone.utc)
     )
     session.add(log)
     session.commit()
@@ -175,18 +175,18 @@ def get_logs():
 def get_history():
     """Get deployment history for charts (last 7 days)."""
     from datetime import timedelta
-    from sqlalchemy import func
+    from sqlalchemy import func, case
 
     session = get_session()
 
     # Get data from last 7 days
-    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
 
     # Group by date
     history_data = session.query(
         func.date(Pipeline.created_at).label('date'),
-        func.sum(func.case((Pipeline.status == 'success', 1), else_=0)).label('successful'),
-        func.sum(func.case((Pipeline.status == 'failed', 1), else_=0)).label('failed')
+        func.sum(case((Pipeline.status == 'success', 1), else_=0)).label('successful'),
+        func.sum(case((Pipeline.status == 'failed', 1), else_=0)).label('failed')
     ).filter(
         Pipeline.created_at >= seven_days_ago
     ).group_by(
@@ -205,7 +205,7 @@ def get_history():
     # Fill in missing days with zeros
     all_dates = []
     for i in range(7):
-        date = (datetime.utcnow() - timedelta(days=6 - i)).date()
+        date = (datetime.now(timezone.utc) - timedelta(days=6 - i)).date()
         all_dates.append(date)
 
     filled_history = []

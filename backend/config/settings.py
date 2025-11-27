@@ -23,6 +23,15 @@ class Config:
     DEFAULT_ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
     DEFAULT_ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "change-me-now")
     AUTH_TOKEN_MAX_AGE = int(os.getenv("AUTH_TOKEN_MAX_AGE", 60 * 60 * 12))  # 12 hours
+    ENABLE_SELF_REGISTRATION = os.getenv("ENABLE_SELF_REGISTRATION", "false").lower() == "true"
+    PASSWORD_PEPPER = os.getenv("PASSWORD_PEPPER", "")
+
+    # Default admin bootstrap is disabled in production unless explicitly allowed
+    FLASK_ENV = os.getenv("FLASK_ENV", "development")
+    _allow_bootstrap_default = "true" if FLASK_ENV != "production" else "false"
+    ALLOW_DEFAULT_ADMIN_BOOTSTRAP = (
+        os.getenv("ALLOW_DEFAULT_ADMIN_BOOTSTRAP", _allow_bootstrap_default).lower() == "true"
+    )
 
     # CORS
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
@@ -30,10 +39,34 @@ class Config:
     # Logging
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
     LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    USE_STRUCTURED_LOGGING = os.getenv("USE_STRUCTURED_LOGGING", "false").lower() == "true"
 
     # JSON
     JSON_SORT_KEYS = False
     JSONIFY_PRETTYPRINT_REGULAR = False
+
+    # Redis & Caching
+    REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    CACHE_TYPE = os.getenv("CACHE_TYPE", "redis")
+    CACHE_REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    CACHE_DEFAULT_TIMEOUT = int(os.getenv("CACHE_DEFAULT_TIMEOUT", "300"))
+
+    # Rate Limiting
+    RATELIMIT_ENABLED = os.getenv("RATELIMIT_ENABLED", "true").lower() == "true"
+    RATELIMIT_STORAGE_URL = os.getenv("REDIS_URL", "redis://localhost:6379/1")
+    RATELIMIT_DEFAULT = os.getenv("RATELIMIT_DEFAULT", "200 per day, 50 per hour")
+
+    # Security Headers
+    TALISMAN_ENABLED = os.getenv("TALISMAN_ENABLED", "true").lower() == "true"
+    FORCE_HTTPS = os.getenv("FORCE_HTTPS", "false").lower() == "true"
+
+    # Monitoring
+    SENTRY_DSN = os.getenv("SENTRY_DSN", "")
+    SENTRY_ENVIRONMENT = os.getenv("SENTRY_ENVIRONMENT", "development")
+    SENTRY_TRACES_SAMPLE_RATE = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "1.0"))
+
+    # API Documentation
+    SWAGGER_ENABLED = os.getenv("SWAGGER_ENABLED", "true").lower() == "true"
 
     # Database
     POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
@@ -101,6 +134,12 @@ class TestConfig(Config):
 
     TESTING = True
     DEBUG = True
+
+    # Disable features that require external services in testing
+    CACHE_TYPE = "SimpleCache"  # Use in-memory cache instead of Redis
+    RATELIMIT_ENABLED = False  # Disable rate limiting in tests
+    SENTRY_DSN = ""  # Disable Sentry in tests
+    ENABLE_METRICS = False  # Disable Prometheus metrics
 
 
 def _ensure_sqlite_path(app) -> None:

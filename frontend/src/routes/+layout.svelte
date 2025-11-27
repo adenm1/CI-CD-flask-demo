@@ -5,33 +5,39 @@
   import { authStore } from '$lib/stores/auth';
   import { pipelinesStore } from '$lib/stores/pipelines';
   import { page } from '$app/stores';
-  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-import { browser } from '$app/environment';
+  import { browser } from '$app/environment';
 
   const auth = authStore;
-
-  onMount(() => {
+  let authInitialized = !browser;
+  if (browser) {
     auth.initialize();
+    authInitialized = true;
+  }
+
+  let isAuthRoute = $derived($page.url.pathname.startsWith('/login'));
+  let isAuthenticated = $derived(Boolean($auth.token));
+
+  $effect(() => {
+    if (isAuthenticated) {
+      pipelinesStore.start();
+    } else {
+      pipelinesStore.stop();
+    }
   });
 
-  $: isAuthRoute = $page.url.pathname.startsWith('/login');
-  $: isAuthenticated = Boolean($auth.token);
-  $: if (isAuthenticated) {
-    pipelinesStore.start();
-  } else {
-    pipelinesStore.stop();
-  }
-  $: if (browser && !isAuthenticated && !isAuthRoute) {
-    goto('/login');
-  }
+  $effect(() => {
+    if (browser && authInitialized && !isAuthenticated && !isAuthRoute) {
+      goto('/login');
+    }
+  });
 </script>
 
 <svelte:head>
   <title>CI/CD Control Center</title>
   <meta name="theme-color" content="#1CB5A3" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 </svelte:head>
 

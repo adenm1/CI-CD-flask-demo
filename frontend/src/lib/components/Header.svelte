@@ -9,7 +9,7 @@
     '/deployments': 'Deployments',
     '/settings': 'Settings'
   };
-  $: headerTitle = titles[$page.url.pathname] ?? 'Mission Control';
+  let headerTitle = $derived(titles[$page.url.pathname] ?? 'Mission Control');
 </script>
 
 <header class="sticky top-0 z-10 border-b border-white/30 bg-background/80 backdrop-blur-lg">

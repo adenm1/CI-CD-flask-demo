@@ -1,6 +1,6 @@
 """API endpoints."""
 from flask import Blueprint, jsonify, request, current_app
-from datetime import datetime
+from datetime import datetime, timezone
 
 api_bp = Blueprint("api", __name__)
 
@@ -18,7 +18,7 @@ def hello():
         "message": "Hello, this is your backend speaking!",
         "author": "Si Ying Liu",
         "version": "1.0.0",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }), 200
 
 
@@ -33,5 +33,5 @@ def status():
         "status": "operational",
         "environment": current_app.config.get("ENV", "production"),
         "debug": current_app.debug,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }), 200

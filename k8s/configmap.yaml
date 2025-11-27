@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: ci-cd-demo
+data:
+  FLASK_ENV: "production"
+  HOST: "0.0.0.0"
+  PORT: "8000"
+  LOG_LEVEL: "INFO"
+  CACHE_TYPE: "redis"
+  CACHE_DEFAULT_TIMEOUT: "300"
+  RATELIMIT_ENABLED: "true"
+  RATELIMIT_DEFAULT: "200 per day, 50 per hour"
+  TALISMAN_ENABLED: "true"
+  FORCE_HTTPS: "true"
+  SWAGGER_ENABLED: "false"
+  USE_STRUCTURED_LOGGING: "true"
+  POSTGRES_HOST: "postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "learning_env"
+  REDIS_URL: "redis://redis:6379/0"
+  CORS_ORIGINS: "https://yourdomain.com"

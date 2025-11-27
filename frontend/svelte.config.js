@@ -3,6 +3,9 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 const config = {
   preprocess: vitePreprocess(),
+  compilerOptions: {
+    runes: true  // Enable Svelte 5 runes mode
+  },
   kit: {
     adapter: adapter({
       pages: 'dist',

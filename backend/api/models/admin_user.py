@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, Column, DateTime, Integer, String
-from werkzeug.security import check_password_hash, generate_password_hash
 
 from backend.utils.db import Base
+from backend.utils.passwords import hash_password, verify_password
 
 
 class AdminUser(Base):
@@ -16,12 +16,13 @@ class AdminUser(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(String(32), nullable=False, default="admin")
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    totp_secret = Column(String(64), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
     def set_password(self, raw_password: str) -> None:
         """Hash and set the password."""
-        self.password_hash = generate_password_hash(raw_password)
+        self.password_hash = hash_password(raw_password)
 
     def check_password(self, raw_password: str) -> bool:
         """Return True when the password matches the stored hash."""
-        return check_password_hash(self.password_hash, raw_password)
+        return verify_password(raw_password, self.password_hash)

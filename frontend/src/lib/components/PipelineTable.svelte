@@ -2,12 +2,13 @@
   import type { Pipeline } from '$lib/api/pipelines';
   import { formatDate, formatDuration, formatRelativeTime } from '$lib/utils/format';
 
-  export let pipelines: Pipeline[] = [];
+  let { pipelines = [] }: { pipelines?: Pipeline[] } = $props();
 
   const statusClasses: Record<Pipeline['status'], string> = {
     queued: 'bg-tablegrey text-body/70',
     running: 'bg-secondary/10 text-secondary',
-    success: 'bg-success/10 text-success'
+    success: 'bg-success/10 text-success',
+    failed: 'bg-error/10 text-error'
   };
 </script>
 

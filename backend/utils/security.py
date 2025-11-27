@@ -3,7 +3,7 @@ from typing import Optional
 
 from flask import current_app
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
-from werkzeug.security import generate_password_hash
+from backend.utils.passwords import hash_password
 
 from backend.api.models import AdminUser
 from backend.utils.db import get_session
@@ -40,6 +40,10 @@ def verify_admin_token(token: str) -> Optional[AdminUser]:
 
 def ensure_default_admin() -> None:
     """Create a default admin user when none exist."""
+    if not current_app.config.get("ALLOW_DEFAULT_ADMIN_BOOTSTRAP", False):
+        current_app.logger.info("Default admin bootstrap is disabled by ALLOW_DEFAULT_ADMIN_BOOTSTRAP=false")
+        return
+
     session = get_session()
     username = current_app.config.get("DEFAULT_ADMIN_USERNAME", "admin")
     password = current_app.config.get("DEFAULT_ADMIN_PASSWORD", "change-me-now")
@@ -49,7 +53,7 @@ def ensure_default_admin() -> None:
         return
 
     admin = AdminUser(username=username)
-    admin.password_hash = generate_password_hash(password)
+    admin.password_hash = hash_password(password)
 
     session.add(admin)
     session.commit()

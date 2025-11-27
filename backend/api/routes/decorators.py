@@ -15,10 +15,14 @@ def require_admin(func: F) -> F:
     @wraps(func)
     def wrapper(*args, **kwargs):
         auth_header = request.headers.get("Authorization", "")
-        if not auth_header.startswith("Bearer "):
+        token = None
+        if auth_header.startswith("Bearer "):
+            token = auth_header.split(" ", 1)[1]
+        if not token:
+            token = request.args.get("token")
+        if not token:
             return jsonify({"error": "Authentication required."}), 401
 
-        token = auth_header.split(" ", 1)[1]
         admin = verify_admin_token(token)
         if not admin:
             return jsonify({"error": "Invalid or expired token."}), 401

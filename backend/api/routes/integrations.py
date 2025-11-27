@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional
 
 from flask import Blueprint, current_app, jsonify, request
@@ -49,9 +49,9 @@ def _upsert_pipeline(payload: Dict[str, object]):
             if existing:
                 existing.status = status
                 existing.owner = owner
-                existing.updated_at = datetime.utcnow()
+                existing.updated_at = datetime.now(timezone.utc)
                 if status in ["success", "failed"]:
-                    existing.completed_at = datetime.utcnow()
+                    existing.completed_at = datetime.now(timezone.utc)
                     if existing.started_at:
                         duration = (existing.completed_at - existing.started_at).total_seconds() / 60
                         existing.duration_minutes = round(duration, 2)
@@ -70,11 +70,11 @@ def _upsert_pipeline(payload: Dict[str, object]):
             workflow_name=payload.get("workflowName"),
             run_id=str(run_id) if run_id else None,
             run_number=payload.get("runNumber"),
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(timezone.utc),
         )
 
         if status in ["success", "failed"]:
-            pipeline.completed_at = datetime.utcnow()
+            pipeline.completed_at = datetime.now(timezone.utc)
             pipeline.duration_minutes = payload.get("durationMinutes") or 0
 
         session.add(pipeline)
@@ -88,7 +88,7 @@ def _upsert_pipeline(payload: Dict[str, object]):
             pipeline_id=pipeline.id,
             level=log_level,
             message=f"Pipeline '{name}' {status}",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
         )
         session.add(log)
         session.commit()

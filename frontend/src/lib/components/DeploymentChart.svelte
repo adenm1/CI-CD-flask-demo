@@ -3,10 +3,10 @@
   import { browser } from '$app/environment';
   import type { DeploymentHistoryPoint } from '$lib/api/deployments';
 
-  export let data: DeploymentHistoryPoint[] = [];
+  let { data = [] }: { data: DeploymentHistoryPoint[] } = $props();
 
-  let ApexChart: any;
-  let mounted = false;
+  let ApexChart: any = $state(undefined);
+  let mounted = $state(false);
 
   onMount(async () => {
     if (browser) {
@@ -16,9 +16,9 @@
     }
   });
 
-  $: categories = data.map((point) =>
+  let categories = $derived(data.map((point) =>
     new Date(point.date).toLocaleDateString('en', { weekday: 'short' })
-  );
+  ));
 
   const baseOptions = {
     chart: {
@@ -32,10 +32,10 @@
     grid: { strokeDashArray: 4 }
   };
 
-  $: series = [
+  let series = $derived([
     { name: 'Successful', data: data.map((point) => point.successful) },
     { name: 'Failed', data: data.map((point) => point.failed) }
-  ];
+  ]);
 </script>
 
 <div class="overflow-hidden rounded-apple-xl border border-white/40 bg-card/80 p-6 shadow-soft backdrop-blur-sm">
@@ -53,8 +53,7 @@
   </div>
   <div class="mt-6">
     {#if mounted && ApexChart}
-      <svelte:component
-        this={ApexChart}
+      <ApexChart
         options={{
           ...baseOptions,
           xaxis: { categories }

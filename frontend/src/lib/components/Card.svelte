@@ -1,11 +1,23 @@
 <script lang="ts">
-  export let title: string;
-  export let value: string | number;
-  export let subtitle: string = '';
-  export let accent: 'primary' | 'secondary' | 'success' | 'error' | 'accent' = 'primary';
-  export let trendLabel: string | null = null;
-  export let trendValue: string | null = null;
-  export let trendPositive = true;
+  let {
+    title,
+    value,
+    subtitle = '',
+    accent = 'primary' as 'primary' | 'secondary' | 'success' | 'error' | 'accent',
+    trendLabel = null as string | null,
+    trendValue = null as string | null,
+    trendPositive = true,
+    icon
+  }: {
+    title: string;
+    value: string | number;
+    subtitle?: string;
+    accent?: 'primary' | 'secondary' | 'success' | 'error' | 'accent';
+    trendLabel?: string | null;
+    trendValue?: string | null;
+    trendPositive?: boolean;
+    icon?: import('svelte').Snippet;
+  } = $props();
 
   const accentClass = {
     primary: 'bg-primary',
@@ -30,7 +42,7 @@
         {/if}
       </div>
       <div class={`flex h-14 w-14 items-center justify-center rounded-apple-lg ${accentClass[accent]}/10 text-2xl transition-transform duration-300 group-hover:scale-110`}>
-        <slot name="icon" />
+        {#if icon}{@render icon()}{/if}
       </div>
     </div>
 

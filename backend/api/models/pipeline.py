@@ -1,7 +1,11 @@
 """Pipeline model for storing CI/CD pipeline data."""
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, DateTime, Float, Text
 from backend.utils.db import Base
+
+
+def _utcnow():
+    return datetime.now(timezone.utc)
 
 
 class Pipeline(Base):
@@ -16,8 +20,8 @@ class Pipeline(Base):
     owner = Column(String(100), nullable=False)
 
     # Timing information
-    started_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    completed_at = Column(DateTime, nullable=True)
+    started_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
     duration_minutes = Column(Float, nullable=True)
 
     # Metadata
@@ -30,8 +34,8 @@ class Pipeline(Base):
     run_id = Column(String(100), nullable=True, unique=True)
     run_number = Column(Integer, nullable=True)
 
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow)
 
     def __repr__(self):
         return f'<Pipeline {self.name} - {self.status}>'
@@ -67,7 +71,7 @@ class DeploymentLog(Base):
     pipeline_id = Column(Integer, nullable=True)  # Can be null for system logs
     level = Column(String(20), nullable=False, default='info')  # info, warning, error, success
     message = Column(Text, nullable=False)
-    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
+    timestamp = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
 
     def __repr__(self):
         return f'<DeploymentLog {self.level}: {self.message[:50]}>'

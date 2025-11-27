@@ -5,6 +5,18 @@ import { mockRequest } from './mock';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (browser ? '' : 'http://localhost:8000');
 const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
+export class ApiError extends Error {
+  status: number;
+  payload: unknown;
+
+  constructor(message: string, status: number, payload: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.payload = payload;
+  }
+}
+
 export type RequestOptions = {
   method?: string;
   data?: unknown;
@@ -47,7 +59,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   if (!response.ok) {
     const errorPayload = await response.json().catch(() => ({}));
     const message = errorPayload.message || errorPayload.error || response.statusText;
-    throw new Error(message || 'Request failed');
+    throw new ApiError(message || 'Request failed', response.status, errorPayload);
   }
 
   if (response.status === 204) {

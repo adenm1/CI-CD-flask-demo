@@ -2,14 +2,14 @@
   import type { DeploymentLog } from '$lib/api/deployments';
   import { formatRelativeTime } from '$lib/utils/format';
 
-  export let logs: DeploymentLog[] = [];
-  let open = true;
+  let { logs = [] }: { logs?: DeploymentLog[] } = $props();
+  let open = $state(true);
 </script>
 
 <div class="overflow-hidden rounded-apple-xl border border-white/40 bg-card/80 shadow-soft backdrop-blur-sm">
   <button
     class="group flex w-full items-center justify-between border-b border-tablegrey/40 px-6 py-5 text-left transition bg-gradient-to-r from-card to-background/20 hover:from-card hover:to-background/30"
-    on:click={() => (open = !open)}
+    onclick={() => (open = !open)}
   >
     <div>
       <p class="text-xs font-medium uppercase tracking-[0.15em] text-body/50">Real-time Events</p>
