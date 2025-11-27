@@ -78,15 +78,15 @@ jobs:
                   self.client.get("/health")
 
               @task(2)
-              def get_pipelines(self):
-                  self.client.get("/api/pipelines")
-
-              @task(1)
               def get_status(self):
                   self.client.get("/api/status")
+
+              @task(1)
+              def get_hello(self):
+                  self.client.get("/api/hello")
           EOF
 
-          locust -f locustfile.py --headless --users 20 --spawn-rate 10 --run-time 30s --host http://localhost:8000 --html performance-report.html
+          locust -f locustfile.py --headless --users 20 --spawn-rate 10 --run-time 30s --host http://localhost:8000 --html performance-report.html --expect-workers 1
 
       - name: Upload performance report
         uses: actions/upload-artifact@v4
