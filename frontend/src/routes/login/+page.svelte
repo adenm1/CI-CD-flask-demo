@@ -84,7 +84,7 @@
     <h2 class="mt-3 text-3xl font-semibold text-heading">Welcome back</h2>
     <p class="text-body/60">Sign in to access your dashboard.</p>
 
-    <form class="mt-8 space-y-4" onsubmit={(e) => { e.preventDefault(); handleLogin(e); }}>
+    <form class="mt-8 space-y-4" onsubmit={(e) => { e.preventDefault(); handleLogin(); }}>
       <label class="block text-sm font-medium text-heading">
         Username
         <input
@@ -195,6 +195,7 @@
         class="absolute top-4 right-4 text-body/60 hover:text-body transition"
         onclick={closeRegisterOverlay}
         type="button"
+        aria-label="Close registration modal"
       >
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -205,7 +206,7 @@
       <h2 class="mt-3 text-2xl font-semibold text-heading">Request access</h2>
       <p class="text-body/60">Submit your details for admin approval.</p>
 
-      <form class="mt-6 space-y-4" onsubmit={(e) => { e.preventDefault(); handleRegister(e); }}>
+      <form class="mt-6 space-y-4" onsubmit={(e) => { e.preventDefault(); handleRegister(); }}>
         <label class="block text-sm font-medium text-heading">
           Username
           <input
