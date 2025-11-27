@@ -89,7 +89,7 @@ jobs:
           locust -f locustfile.py --headless --users 50 --spawn-rate 10 --run-time 2m --host http://localhost:8000 --html performance-report.html
 
       - name: Upload performance report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: performance-report
           path: performance-report.html
