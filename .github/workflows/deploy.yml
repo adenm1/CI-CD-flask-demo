@@ -74,21 +74,28 @@ jobs:
           name: build-artifacts
           path: .
 
-      - name: Deploy to server (single SSH session)
+      - name: Stop services before deployment
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
-          timeout: 15m
-          command_timeout: 15m
+          timeout: 5m
+          command_timeout: 5m
           script: |
             set -e
 
-            echo "📦 Step 1: Prepare deployment directory"
-            mkdir -p /opt/ci-cd-flask-demo-new
+            echo "🔄 Step 1: Stop old services"
+            cd /opt/CI-CD-flask-demo 2>/dev/null || true
+            if [ -f docker-compose.yml ]; then
+              docker compose down --remove-orphans || true
+            fi
 
-            echo "✅ Deployment directory ready"
+            # 强制清理端口
+            sudo fuser -k 80/tcp 2>/dev/null || true
+            sudo fuser -k 443/tcp 2>/dev/null || true
+
+            echo "✅ Services stopped"
 
       - name: Copy files to server
         uses: appleboy/scp-action@v1.0.0
@@ -99,11 +106,11 @@ jobs:
           timeout: 10m
           command_timeout: 10m
           source: ".,!.git,!.github,!__pycache__,!*.pyc,!.pytest_cache,!.venv,!src,!.trash,!frontend/node_modules,!.env,!.env.*,!.envrc"
-          target: "/opt/ci-cd-flask-demo-new"
+          target: "/opt/CI-CD-flask-demo"
           strip_components: 0
           overwrite: true
 
-      - name: Deploy application (single SSH session)
+      - name: Deploy application
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -114,38 +121,12 @@ jobs:
           script: |
             set -e
 
-            echo "🔄 Step 2: Stop old services"
-            cd /opt/ci-cd-flask-demo 2>/dev/null || true
-            if [ -f docker-compose.yml ]; then
-              docker compose down --remove-orphans || true
-            fi
+            cd /opt/CI-CD-flask-demo
 
-            # 强制清理端口
-            sudo fuser -k 80/tcp 2>/dev/null || true
-            sudo fuser -k 443/tcp 2>/dev/null || true
-
-            echo "🔄 Step 3: Switch to new version"
-            # 备份旧版本
-            if [ -d /opt/ci-cd-flask-demo ]; then
-              rm -rf /opt/ci-cd-flask-demo-old || true
-              mv /opt/ci-cd-flask-demo /opt/ci-cd-flask-demo-old
-            fi
-
-            # 切换新版本
-            mv /opt/ci-cd-flask-demo-new /opt/ci-cd-flask-demo
-            cd /opt/ci-cd-flask-demo
-
-            echo "🔍 Step 4: Validate environment"
+            echo "🔍 Step 2: Validate environment"
             if [ ! -f .env ]; then
               echo "❌ .env file missing on server!"
-              # 尝试从备份恢复
-              if [ -f /opt/ci-cd-flask-demo-old/.env ]; then
-                echo "📋 Restoring .env from backup"
-                cp /opt/ci-cd-flask-demo-old/.env .env
-              else
-                echo "❌ No .env backup found. Deployment cannot proceed."
-                exit 1
-              fi
+              exit 1
             fi
 
             # 验证必需的环境变量
@@ -157,10 +138,10 @@ jobs:
             done
             echo "✅ Environment validated"
 
-            echo "🐳 Step 5: Build Docker images"
+            echo "🐳 Step 3: Build Docker images"
             docker compose build --no-cache
 
-            echo "🗃️ Step 6: Start database"
+            echo "🗃️ Step 4: Start database"
             docker compose up -d postgres
 
             # 等待数据库健康
@@ -173,10 +154,10 @@ jobs:
               sleep 2
             done
 
-            echo "📊 Step 7: Run migrations"
+            echo "📊 Step 5: Run migrations"
             docker compose run --rm backend alembic upgrade head || echo "⚠️ Migrations failed or no changes"
 
-            echo "🚀 Step 8: Start all services"
+            echo "🚀 Step 6: Start all services"
             docker compose up -d
 
             # 等待后端健康
@@ -249,9 +230,6 @@ jobs:
           script: |
             echo "🧹 Cleaning up..."
 
-            # 删除旧备份
-            rm -rf /opt/ci-cd-flask-demo-old || true
-
             # 清理Docker资源
             docker image prune -f
             docker volume prune -f || true
@@ -277,7 +255,7 @@ jobs:
           script: |
             STATUS="${{ needs.deploy.result }}"
 
-            cd /opt/ci-cd-flask-demo || exit 0
+            cd /opt/CI-CD-flask-demo || exit 0
 
             export PIPE_STATUS="$STATUS"
             export PIPE_OWNER="${{ github.actor }}"
