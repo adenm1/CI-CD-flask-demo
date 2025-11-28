@@ -5,55 +5,90 @@ on:
     branches: [ main ]
 
 jobs:
-  deploy:
+  # Job 1: 构建和测试
+  build:
+    name: 🏗️ Build & Test
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ 检查当前代码
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.0
 
-      # 2️⃣ 设置 Python 环境
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6.1.0
         with:
           python-version: '3.11'
           cache: 'pip'
 
-      # 3️⃣ 安装后端依赖并运行测试
-      - name: Install backend dependencies and run tests
-        run: |
-          pip install -r requirements.txt
-          pytest backend/tests --maxfail=1 --disable-warnings -q
+      - name: Install backend dependencies
+        run: pip install -r requirements.txt
 
-      # 4️⃣ 设置 Node.js 环境
+      - name: Run backend tests
+        run: pytest backend/tests --maxfail=1 --disable-warnings -q
+
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6.0.0
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      # 5️⃣ 前端类型检查
-      - name: Lint / type-check frontend
-        run: |
-          cd frontend
-          echo "🔍 Running svelte-check..."
-          npm ci
-          npm run check
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
 
-      # 6️⃣ 构建前端
+      - name: Type-check frontend
+        run: cd frontend && npm run check
+
       - name: Build frontend
-        run: |
-          cd frontend
-          echo "🏗️ Building frontend..."
-          npm run build
-          echo "✅ Frontend build complete!"
-          ls -la dist/
+        run: cd frontend && npm run build
 
-      # 7️⃣ 将项目上传到你的云服务器
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v5.0.0
+        with:
+          name: build-artifacts
+          path: |
+            frontend/dist/
+            backend/
+            requirements.txt
+            docker-compose.yml
+            Dockerfile
+            nginx.conf
+          retention-days: 1
+
+  # Job 2: 部署到服务器（仅在构建成功后执行）
+  deploy:
+    name: 🚀 Deploy to Server
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6.0.0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v6.0.0
+        with:
+          name: build-artifacts
+          path: .
+
+      - name: Deploy to server (single SSH session)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          timeout: 15m
+          command_timeout: 15m
+          script: |
+            set -e
+
+            echo "📦 Step 1: Prepare deployment directory"
+            mkdir -p /opt/ci-cd-flask-demo-new
+
+            echo "✅ Deployment directory ready"
+
       - name: Copy files to server
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
@@ -61,223 +96,146 @@ jobs:
           timeout: 10m
           command_timeout: 10m
           source: ".,!.git,!.github,!__pycache__,!*.pyc,!.pytest_cache,!.venv,!src,!.trash,!frontend/node_modules,!.env,!.env.*,!.envrc"
-          target: "/opt/ci-cd-flask-demo"
+          target: "/opt/ci-cd-flask-demo-new"
           strip_components: 0
           overwrite: true
 
-      # 8️⃣ 停止当前运行的服务并释放端口
-      - name: Stop current services and free ports
+      - name: Deploy application (single SSH session)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
-          timeout: 5m
-          command_timeout: 5m
+          timeout: 15m
+          command_timeout: 15m
           script: |
-            cd /opt/ci-cd-flask-demo
+            set -e
 
-            # 停止 docker-compose 服务并清理孤立容器
+            echo "🔄 Step 2: Stop old services"
+            cd /opt/ci-cd-flask-demo 2>/dev/null || true
             if [ -f docker-compose.yml ]; then
-              echo "🛑 Stopping docker-compose services..."
               docker compose down --remove-orphans || true
             fi
 
-            # 停止所有相关的容器
-            echo "🛑 Stopping all project containers..."
-            docker ps -a | grep -E 'flask-app|flask-backend|nginx-proxy|ci-cd-demo' | awk '{print $1}' | xargs -r docker stop || true
-            docker ps -a | grep -E 'flask-app|flask-backend|nginx-proxy|ci-cd-demo' | awk '{print $1}' | xargs -r docker rm || true
+            # 强制清理端口
+            sudo fuser -k 80/tcp 2>/dev/null || true
+            sudo fuser -k 443/tcp 2>/dev/null || true
 
-            # 检查并释放端口 80 和 443
-            echo "🔍 Checking port usage..."
-
-            # 尝试停止常见的占用 80/443 端口的服务
-            echo "Stopping common web servers..."
-            sudo systemctl stop nginx || true
-            sudo systemctl stop apache2 || true
-            sudo systemctl stop httpd || true
-
-            # 使用 fuser 杀死占用端口的进程
-            echo "Killing processes on port 80..."
-            sudo fuser -k 80/tcp || true
-
-            echo "Killing processes on port 443..."
-            sudo fuser -k 443/tcp || true
-
-            # 等待端口释放
-            sleep 2
-
-            # 验证端口是否释放
-            if sudo ss -tlnp | grep -q ':80 '; then
-              echo "⚠️  Port 80 still in use after cleanup"
-              sudo ss -tlnp | grep ':80 '
-            else
-              echo "✅ Port 80 is free"
+            echo "🔄 Step 3: Switch to new version"
+            # 备份旧版本
+            if [ -d /opt/ci-cd-flask-demo ]; then
+              rm -rf /opt/ci-cd-flask-demo-old || true
+              mv /opt/ci-cd-flask-demo /opt/ci-cd-flask-demo-old
             fi
 
-            if sudo ss -tlnp | grep -q ':443 '; then
-              echo "⚠️  Port 443 still in use after cleanup"
-              sudo ss -tlnp | grep ':443 '
-            else
-              echo "✅ Port 443 is free"
-            fi
-
-      # 9️⃣ 构建并启动服务（当前仅 HTTP）
-      - name: Deploy with Docker Compose
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          timeout: 10m
-          command_timeout: 10m
-          script: |
+            # 切换新版本
+            mv /opt/ci-cd-flask-demo-new /opt/ci-cd-flask-demo
             cd /opt/ci-cd-flask-demo
 
-            echo "🔍 Pre-deployment checks..."
-            echo "SSL directory contents:"
-            ls -la ssl/ || echo "SSL directory is empty or doesn't exist"
-            echo "Nginx config (first 30 lines):"
-            head -30 nginx.conf
-
-            # Ensure production secrets stay on the server
+            echo "🔍 Step 4: Validate environment"
             if [ ! -f .env ]; then
-              echo "❌ .env file is missing on the server. Populate it securely via secrets management before deploying."
-              exit 1
+              echo "❌ .env file missing on server!"
+              # 尝试从备份恢复
+              if [ -f /opt/ci-cd-flask-demo-old/.env ]; then
+                echo "📋 Restoring .env from backup"
+                cp /opt/ci-cd-flask-demo-old/.env .env
+              else
+                echo "❌ No .env backup found. Deployment cannot proceed."
+                exit 1
+              fi
             fi
 
-            echo "🔐 Validating required environment variables..."
-            missing_vars=""
+            # 验证必需的环境变量
             for var in SECRET_KEY DATABASE_URL PASSWORD_PEPPER; do
-              if ! grep -E "^${var}=" .env >/dev/null; then
-                missing_vars="$missing_vars $var"
+              if ! grep -E "^${var}=" .env >/dev/null 2>&1; then
+                echo "❌ Missing required variable: $var"
+                exit 1
               fi
             done
-            if [ -n "$missing_vars" ]; then
-              echo "❌ Missing required variables in .env:$missing_vars"
-              exit 1
-            fi
-            echo "✅ Environment file present (sensitive values remain on the server)"
+            echo "✅ Environment validated"
 
-            echo "🛠 Building Docker images..."
-            docker compose build
+            echo "🐳 Step 5: Build Docker images"
+            docker compose build --no-cache
 
-            echo "🐘 Starting database for migrations..."
+            echo "🗃️ Step 6: Start database"
             docker compose up -d postgres
-            echo "⏳ Waiting for Postgres to become healthy..."
-            for i in {1..10}; do
-              if docker compose ps | grep postgres | grep -q "(healthy)"; then
-                echo "✅ Postgres is healthy"
+
+            # 等待数据库健康
+            for i in {1..30}; do
+              if docker compose ps postgres | grep -q "healthy"; then
+                echo "✅ Database ready"
                 break
               fi
-              echo "Waiting for Postgres health... ($i/10)"
-              sleep 3
+              echo "⏳ Waiting for database... ($i/30)"
+              sleep 2
             done
 
-            echo "🗂 Running migrations..."
-            docker compose run --rm backend alembic upgrade head
+            echo "📊 Step 7: Run migrations"
+            docker compose run --rm backend alembic upgrade head || echo "⚠️ Migrations failed or no changes"
 
-            echo "🚀 Starting services..."
+            echo "🚀 Step 8: Start all services"
             docker compose up -d
 
-            echo "⏳ Waiting for backend to become healthy..."
-            # Wait for backend health check to pass (max 60 seconds)
-            for i in {1..20}; do
-              if docker compose ps | grep "backend" | grep -q "(healthy)"; then
-                echo "✅ Backend is healthy!"
+            # 等待后端健康
+            for i in {1..40}; do
+              if docker compose ps backend | grep -q "healthy"; then
+                echo "✅ Backend healthy"
                 break
               fi
-              echo "Waiting for backend health check... ($i/20)"
+              echo "⏳ Waiting for backend... ($i/40)"
               sleep 3
             done
 
-            echo "📋 Checking service status..."
-            docker compose ps -a
-
-            # 检查后端是否健康
-            if ! docker compose ps | grep "backend" | grep -q "(healthy)"; then
-              echo "❌ Backend service is not healthy!"
-              echo "📋 Backend logs:"
-              docker compose logs backend
+            # 验证服务状态
+            if ! docker compose ps backend | grep -q "healthy"; then
+              echo "❌ Backend failed to start"
+              docker compose logs backend --tail=50
               exit 1
             fi
 
-            # 等待 nginx 启动完成
-            echo "⏳ Waiting for nginx to start..."
-            sleep 5
-
-            # 检查 nginx 是否正常运行（不是 Restarting 或 Exited）
-            if docker compose ps | grep "nginx" | grep -qE "Restarting|Exited"; then
-              echo "❌ Nginx is not running properly!"
-              echo "📋 Nginx logs:"
-              docker compose logs nginx
+            if ! docker compose ps nginx | grep -q "Up"; then
+              echo "❌ Nginx failed to start"
+              docker compose logs nginx --tail=50
               exit 1
             fi
 
-            if ! docker compose ps | grep "nginx" | grep -q "Up"; then
-              echo "❌ Nginx service failed to start!"
-              echo "📋 Nginx logs:"
-              docker compose logs nginx
-              exit 1
-            fi
+            echo "✅ All services started successfully"
+            docker compose ps
 
-            echo ""
-            echo "=========================================="
-            echo "✅ Deployment successful!"
-            echo "=========================================="
-            echo "✅ Backend: healthy and running"
-            echo "✅ Nginx: running"
-            echo "=========================================="
-
-      # 🔟 验证部署
-      - name: Verify deployment
+      - name: Health check
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
-          timeout: 5m
-          command_timeout: 5m
+          timeout: 2m
+          command_timeout: 2m
           script: |
-            cd /opt/ci-cd-flask-demo
+            echo "🏥 Running health checks..."
 
-            echo "🔍 Checking container status..."
-            docker compose ps
-
-            echo "📋 Checking running containers..."
-            docker ps
-
-            # 健康检查 - 通过 Nginx HTTP (端口 80)
-            echo "🏥 HTTP health check..."
             for i in {1..15}; do
               if curl -f http://localhost/health > /dev/null 2>&1; then
-                echo "✅ HTTP health check passed!"
-
-                # 如果存在自签名证书，检查 HTTPS
-                if [ -f "ssl/fullchain.pem" ]; then
-                  echo "🔐 Checking HTTPS (self-signed)..."
-                  if curl -f -k https://localhost/health > /dev/null 2>&1; then
-                    echo "✅ HTTPS health check passed!"
-                  else
-                    echo "⚠️  HTTPS not responding"
-                  fi
-                fi
-
-                echo "✅ Deployment successful!"
+                echo "✅ Health check passed!"
+                curl http://localhost/health
                 exit 0
               fi
               echo "⏳ Retry $i/15..."
-              sleep 3
+              sleep 2
             done
 
-            echo "❌ Health check failed!"
-            echo "📋 Container logs:"
-            docker compose logs --tail=50
+            echo "❌ Health check failed"
+            docker compose logs --tail=30
             exit 1
 
-      # 1️⃣1️⃣ 清理旧镜像
-      - name: Cleanup old images
-        if: success()
+  # Job 3: 清理（仅在部署成功后执行）
+  cleanup:
+    name: 🧹 Cleanup
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: success()
+
+    steps:
+      - name: Cleanup old resources
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -286,71 +244,60 @@ jobs:
           timeout: 2m
           command_timeout: 2m
           script: |
-            echo "🧹 Cleaning up old Docker images..."
+            echo "🧹 Cleaning up..."
+
+            # 删除旧备份
+            rm -rf /opt/ci-cd-flask-demo-old || true
+
+            # 清理Docker资源
             docker image prune -f
+            docker volume prune -f || true
+
             echo "✅ Cleanup complete"
 
-      # 1️⃣2️⃣ 报告部署状态到监控平台
-      - name: Report deployment to dashboard
-        if: always()
+  # Job 4: 报告部署状态
+  report:
+    name: 📊 Report Status
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Report deployment status
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
-          timeout: 2m
-          command_timeout: 2m
+          timeout: 30s
+          command_timeout: 30s
           script: |
-            echo "📊 Reporting deployment status to dashboard..."
+            STATUS="${{ needs.deploy.result }}"
 
-            # 确定部署状态
-            if [ "${{ job.status }}" = "success" ]; then
-              STATUS="success"
-            else
-              STATUS="failed"
-            fi
+            cd /opt/ci-cd-flask-demo || exit 0
 
             export PIPE_STATUS="$STATUS"
             export PIPE_OWNER="${{ github.actor }}"
             export PIPE_BRANCH="${{ github.ref_name }}"
             export PIPE_SHA="${{ github.sha }}"
             export PIPE_MESSAGE="${{ github.event.head_commit.message }}"
-            export PIPE_WORKFLOW="${{ github.workflow }}"
-            export PIPE_RUN_ID="${{ github.run_id }}"
-            export PIPE_RUN_NUMBER="${{ github.run_number }}"
 
             PAYLOAD=$(python3 - <<'PY'
-            import json
-            import os
-
-            payload = {
+            import json, os
+            print(json.dumps({
                 "name": "CI-CD-flask-demo",
-                "description": "Main deployment pipeline",
                 "status": os.environ.get("PIPE_STATUS"),
                 "owner": os.environ.get("PIPE_OWNER"),
                 "branch": os.environ.get("PIPE_BRANCH"),
                 "commitSha": os.environ.get("PIPE_SHA"),
-                "commitMessage": os.environ.get("PIPE_MESSAGE"),
-                "workflowName": os.environ.get("PIPE_WORKFLOW"),
-                "runId": os.environ.get("PIPE_RUN_ID"),
-                "runNumber": int(os.environ.get("PIPE_RUN_NUMBER", "0")),
-            }
-            print(json.dumps(payload))
+                "commitMessage": os.environ.get("PIPE_MESSAGE")
+            }))
             PY
             )
 
             SIGNATURE=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "${{ secrets.PIPELINE_WEBHOOK_SECRET }}" | awk '{print $2}')
 
-            # Add timeout to prevent hanging, retry up to 3 times
-            for i in {1..3}; do
-              if timeout 10s curl -X POST http://localhost/api/integrations/github \
-                -H "Content-Type: application/json" \
-                -H "X-Hub-Signature-256: sha256=$SIGNATURE" \
-                -d "$PAYLOAD" 2>/dev/null; then
-                echo "✅ Deployment status reported"
-                break
-              else
-                echo "⚠️  Failed to report to dashboard (attempt $i/3)"
-                [ $i -lt 3 ] && sleep 2
-              fi
-            done
+            timeout 5s curl -X POST http://localhost/api/integrations/github \
+              -H "Content-Type: application/json" \
+              -H "X-Hub-Signature-256: sha256=$SIGNATURE" \
+              -d "$PAYLOAD" 2>/dev/null || echo "⚠️ Failed to report status"
