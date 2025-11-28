@@ -51,25 +51,44 @@ jobs:
           echo "✅ Frontend build complete!"
           ls -la dist/
 
-      # 7️⃣ 将项目上传到你的云服务器
+      # 7️⃣ SSH连接测试
+      - name: Test SSH connection
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          timeout: 30s
+          command_timeout: 10s
+          script: |
+            echo "✅ SSH connection successful"
+            echo "Server: $(hostname)"
+            echo "User: $(whoami)"
+            echo "Date: $(date)"
+
+      # 8️⃣ 将项目上传到你的云服务器
       - name: Copy files to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
+          timeout: 10m
+          command_timeout: 10m
           source: ".,!.git,!.github,!__pycache__,!*.pyc,!.pytest_cache,!.venv,!src,!.trash,!frontend/node_modules,!.env,!.env.*,!.envrc"
           target: "/opt/ci-cd-flask-demo"
           strip_components: 0
           overwrite: true
 
-      # 8️⃣ 停止当前运行的服务并释放端口
+      # 9️⃣ 停止当前运行的服务并释放端口
       - name: Stop current services and free ports
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
+          timeout: 5m
+          command_timeout: 5m
           script: |
             cd /opt/ci-cd-flask-demo
 
@@ -118,13 +137,15 @@ jobs:
               echo "✅ Port 443 is free"
             fi
 
-      # 9️⃣ 构建并启动服务（当前仅 HTTP）
+      # 🔟 构建并启动服务（当前仅 HTTP）
       - name: Deploy with Docker Compose
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
+          timeout: 10m
+          command_timeout: 10m
           script: |
             cd /opt/ci-cd-flask-demo
 
@@ -223,13 +244,15 @@ jobs:
             echo "✅ Nginx: running"
             echo "=========================================="
 
-      # 1️⃣0️⃣ 验证部署
+      # 1️⃣1️⃣ 验证部署
       - name: Verify deployment
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
+          timeout: 5m
+          command_timeout: 5m
           script: |
             cd /opt/ci-cd-flask-demo
 
@@ -267,7 +290,7 @@ jobs:
             docker compose logs --tail=50
             exit 1
 
-      # 1️⃣1️⃣ 清理旧镜像
+      # 1️⃣2️⃣ 清理旧镜像
       - name: Cleanup old images
         if: success()
         uses: appleboy/ssh-action@v1.0.3
@@ -275,12 +298,14 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
+          timeout: 2m
+          command_timeout: 2m
           script: |
             echo "🧹 Cleaning up old Docker images..."
             docker image prune -f
             echo "✅ Cleanup complete"
 
-      # 1️⃣2️⃣ 报告部署状态到监控平台
+      # 1️⃣3️⃣ 报告部署状态到监控平台
       - name: Report deployment to dashboard
         if: always()
         uses: appleboy/ssh-action@v1.0.3
@@ -288,6 +313,8 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
+          timeout: 2m
+          command_timeout: 2m
           script: |
             echo "📊 Reporting deployment status to dashboard..."
 
