@@ -195,6 +195,14 @@ jobs:
               # 检查是否是"已经是最新"的情况
               if grep -q "Target database is not up to date\|No changes in schema detected" /tmp/migration.log; then
                 echo "ℹ️ Database already up to date, continuing..."
+              elif grep -qi "already exists\|DuplicateTable" /tmp/migration.log; then
+                echo "ℹ️ Detected existing objects (likely previous partial migration). Stamping head..."
+                if docker compose run --rm backend alembic stamp head; then
+                  echo "✅ Stamped alembic version to head after detecting existing tables"
+                else
+                  echo "❌ Failed to stamp alembic version after duplicate-table detection"
+                  exit 1
+                fi
               else
                 echo "❌ Migration failed with errors"
                 echo "📋 Please check migration logs above"
