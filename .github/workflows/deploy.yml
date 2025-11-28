@@ -128,7 +128,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           timeout: 10m
           command_timeout: 10m
-          source: ".,!.git,!.github,!__pycache__,!*.pyc,!.pytest_cache,!.venv,!src,!.trash,!frontend/node_modules,!.env,!.env.*,!.envrc"
+          source: ".,!.git,!.github,!__pycache__,!*.pyc,!.pytest_cache,!.venv,!src,!.trash,!frontend/node_modules,!.env,!.env.local,!.env.production,!.env.development,!.env.test,!.env.staging,!.envrc"
           target: "/opt/CI-CD-flask-demo"
           strip_components: 0
           overwrite: true
