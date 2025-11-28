@@ -74,7 +74,7 @@ jobs:
           name: build-artifacts
           path: .
 
-      - name: Stop services before deployment
+      - name: Stop services and prepare directory
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -96,6 +96,29 @@ jobs:
             sudo fuser -k 443/tcp 2>/dev/null || true
 
             echo "✅ Services stopped"
+
+            echo "🗑️ Step 2: Clean deployment directory"
+            # 备份 .env 文件（如果存在）
+            if [ -f /opt/CI-CD-flask-demo/.env ]; then
+              cp /opt/CI-CD-flask-demo/.env /tmp/.env.backup
+              echo "✅ Backed up .env file"
+            fi
+
+            # 删除所有文件和隐藏文件（保留目录本身）
+            cd /opt/CI-CD-flask-demo
+            sudo rm -rf * .[^.]* 2>/dev/null || true
+
+            # 确保目录权限正确
+            sudo chown -R ${{ secrets.SERVER_USER }}:${{ secrets.SERVER_USER }} /opt/CI-CD-flask-demo
+            sudo chmod 755 /opt/CI-CD-flask-demo
+
+            # 恢复 .env 文件
+            if [ -f /tmp/.env.backup ]; then
+              mv /tmp/.env.backup /opt/CI-CD-flask-demo/.env
+              echo "✅ Restored .env file"
+            fi
+
+            echo "✅ Directory prepared (cleaned and owned by ${{ secrets.SERVER_USER }})"
 
       - name: Copy files to server
         uses: appleboy/scp-action@v1.0.0
@@ -145,45 +168,93 @@ jobs:
             docker compose up -d postgres
 
             # 等待数据库健康
+            echo "⏳ Waiting for database to be healthy..."
             for i in {1..30}; do
               if docker compose ps postgres | grep -q "healthy"; then
                 echo "✅ Database ready"
                 break
               fi
-              echo "⏳ Waiting for database... ($i/30)"
+              if [ $i -eq 30 ]; then
+                echo "❌ Database failed to become healthy after 60s"
+                docker compose logs postgres --tail=30
+                exit 1
+              fi
+              echo "⏳ Attempt $i/30..."
               sleep 2
             done
 
-            echo "📊 Step 5: Run migrations"
-            docker compose run --rm backend alembic upgrade head || echo "⚠️ Migrations failed or no changes"
+            echo "📊 Step 5: Run database migrations"
+            # 运行迁移，捕获输出和错误
+            if docker compose run --rm backend alembic upgrade head 2>&1 | tee /tmp/migration.log; then
+              echo "✅ Migrations completed successfully"
+            else
+              MIGRATION_EXIT=$?
+              echo "⚠️ Migration command failed with exit code: $MIGRATION_EXIT"
+              cat /tmp/migration.log
+
+              # 检查是否是"已经是最新"的情况
+              if grep -q "Target database is not up to date\|No changes in schema detected" /tmp/migration.log; then
+                echo "ℹ️ Database already up to date, continuing..."
+              else
+                echo "❌ Migration failed with errors"
+                echo "📋 Please check migration logs above"
+                echo "🔧 Manual intervention may be required"
+                exit 1
+              fi
+            fi
 
             echo "🚀 Step 6: Start all services"
             docker compose up -d
 
-            # 等待后端健康
+            # 等待后端健康（2分钟超时）
+            echo "⏳ Waiting for backend to be healthy..."
+            BACKEND_HEALTHY=false
             for i in {1..40}; do
               if docker compose ps backend | grep -q "healthy"; then
-                echo "✅ Backend healthy"
+                echo "✅ Backend healthy after ${i}0 seconds"
+                BACKEND_HEALTHY=true
                 break
               fi
-              echo "⏳ Waiting for backend... ($i/40)"
+
+              # 每10次检查（30秒）输出一次日志
+              if [ $((i % 10)) -eq 0 ]; then
+                echo "⏳ Still waiting... ($i/40, ${i}0s elapsed)"
+                echo "📋 Recent backend logs:"
+                docker compose logs backend --tail=10
+              fi
+
               sleep 3
             done
 
-            # 验证服务状态
-            if ! docker compose ps backend | grep -q "healthy"; then
-              echo "❌ Backend failed to start"
-              docker compose logs backend --tail=50
+            # 验证后端服务状态
+            if [ "$BACKEND_HEALTHY" = false ]; then
+              echo "❌ Backend failed to become healthy after 120s"
+              echo "📋 Full backend logs:"
+              docker compose logs backend --tail=100
+              echo ""
+              echo "🐳 Container status:"
+              docker compose ps backend
+              echo ""
+              echo "⚠️ Deployment failed - backend not healthy"
               exit 1
             fi
 
+            # 验证 Nginx 状态
+            echo "🔍 Checking Nginx status..."
             if ! docker compose ps nginx | grep -q "Up"; then
               echo "❌ Nginx failed to start"
+              echo "📋 Nginx logs:"
               docker compose logs nginx --tail=50
+              echo ""
+              echo "🐳 Container status:"
+              docker compose ps nginx
               exit 1
             fi
+            echo "✅ Nginx is running"
 
+            echo ""
             echo "✅ All services started successfully"
+            echo "🐳 Final container status:"
             docker compose ps
 
       - name: Health check
@@ -192,24 +263,58 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
-          timeout: 2m
-          command_timeout: 2m
+          timeout: 3m
+          command_timeout: 3m
           script: |
-            echo "🏥 Running health checks..."
+            cd /opt/CI-CD-flask-demo
 
-            for i in {1..15}; do
-              if curl -f http://localhost/health > /dev/null 2>&1; then
-                echo "✅ Health check passed!"
-                curl http://localhost/health
-                exit 0
+            echo "🏥 Running application health checks..."
+            echo ""
+
+            HEALTH_PASSED=false
+            for i in {1..20}; do
+              HTTP_CODE=$(curl -s -o /tmp/health.json -w "%{http_code}" http://localhost/health 2>/dev/null || echo "000")
+
+              if [ "$HTTP_CODE" = "200" ]; then
+                echo "✅ Health check passed! (attempt $i)"
+                echo "📋 Health response:"
+                cat /tmp/health.json | jq '.' 2>/dev/null || cat /tmp/health.json
+                HEALTH_PASSED=true
+                break
+              else
+                if [ $((i % 5)) -eq 0 ]; then
+                  echo "⏳ Attempt $i/20 - HTTP $HTTP_CODE (waiting ${i}s so far)"
+                fi
+                sleep 2
               fi
-              echo "⏳ Retry $i/15..."
-              sleep 2
             done
 
-            echo "❌ Health check failed"
-            docker compose logs --tail=30
-            exit 1
+            if [ "$HEALTH_PASSED" = false ]; then
+              echo ""
+              echo "❌ Health check failed after 40 seconds"
+              echo ""
+              echo "🔍 Diagnostic information:"
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+              echo ""
+              echo "🐳 Container status:"
+              docker compose ps
+
+              echo ""
+              echo "🌐 Port bindings:"
+              docker compose ps --format json | jq -r '.[].Publishers[] | select(.TargetPort == 80 or .TargetPort == 8000)' 2>/dev/null || netstat -tlnp | grep -E ':(80|8000) '
+
+              echo ""
+              echo "📋 Recent logs from all services:"
+              docker compose logs --tail=20
+
+              echo ""
+              echo "⚠️ Deployment marked as FAILED - health endpoint not responding"
+              exit 1
+            fi
+
+            echo ""
+            echo "✅ All health checks passed successfully"
 
   # Job 3: 清理（仅在部署成功后执行）
   cleanup:
