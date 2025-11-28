@@ -1,5 +1,84 @@
 # CI/CD Troubleshooting Guide
 
+## SSH Connection Extremely Slow (14+ minutes) - CRITICAL ISSUE 🔴
+
+### Symptoms
+- SSH connection test takes 14+ minutes to complete
+- Simple commands like `echo "OK"` take forever
+- No error messages, just extreme slowness
+
+### Root Cause: DNS Reverse Lookup Timeout
+The **most common cause** of slow SSH connections is DNS reverse lookup.
+
+When a client connects, SSH server tries to:
+1. Resolve the client's IP address to a hostname (reverse DNS)
+2. If the PTR record doesn't exist or DNS is slow, it **waits for timeout**
+3. Default timeout can be 120 seconds or more
+4. Multiple retry attempts = 14+ minutes total
+
+**GitHub Actions IPs rarely have PTR records**, causing this issue.
+
+### SOLUTION: Fix Server-Side SSH Configuration ⚡
+
+Run this script **on your server** (not in CI/CD):
+
+```bash
+# SSH into your server first
+ssh your-server
+
+# Download and run the fix script
+curl -sSL https://raw.githubusercontent.com/YOUR-REPO/main/scripts/fix-ssh-slow-connection.sh | sudo bash
+
+# Or if you have the repo on server:
+sudo bash /opt/ci-cd-flask-demo/scripts/fix-ssh-slow-connection.sh
+```
+
+**Manual fix** (if script doesn't work):
+
+```bash
+# 1. Backup SSH config
+sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup
+
+# 2. Edit SSH daemon config
+sudo nano /etc/ssh/sshd_config
+
+# 3. Add or modify these lines:
+UseDNS no                    # ← Most important!
+GSSAPIAuthentication no      # Disable slow Kerberos auth
+GSSAPIKeyExchange no
+LoginGraceTime 30
+MaxStartups 10:30:60
+
+# 4. Validate configuration
+sudo sshd -t
+
+# 5. Restart SSH service
+sudo systemctl restart sshd   # or: sudo systemctl restart ssh
+
+# 6. Test from local machine
+time ssh your-server 'echo OK'   # Should be < 5 seconds now
+```
+
+### Expected Results
+| Before | After |
+|--------|-------|
+| 14 minutes | 2-5 seconds |
+| CI/CD fails | CI/CD succeeds |
+| Timeout errors | Fast connections |
+
+### Why This Works
+- **UseDNS no**: Disables reverse DNS lookup entirely (safe and recommended)
+- **GSSAPIAuthentication no**: Disables Kerberos authentication attempts
+- **LoginGraceTime 30**: Reduces timeout for failed auth attempts
+- **MaxStartups**: Allows more concurrent connections
+
+### Security Impact
+✅ **No security reduction**: Disabling DNS lookups doesn't affect authentication
+✅ **SSH key auth still works**: Public key authentication unchanged
+✅ **Firewall unchanged**: IP filtering still effective
+
+---
+
 ## SSH Handshake Failure - Fixed 2025-11-28
 
 ### Issue Description
