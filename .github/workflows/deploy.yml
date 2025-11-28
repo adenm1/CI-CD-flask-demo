@@ -184,31 +184,14 @@ jobs:
             done
 
             echo "📊 Step 5: Run database migrations"
-            # 运行迁移，捕获输出和错误
-            if docker compose run --rm backend alembic upgrade head 2>&1 | tee /tmp/migration.log; then
+            # 运行迁移 - 迁移脚本现在具有幂等性,可安全重复运行
+            if docker compose run --rm backend alembic upgrade head; then
               echo "✅ Migrations completed successfully"
             else
-              MIGRATION_EXIT=$?
-              echo "⚠️ Migration command failed with exit code: $MIGRATION_EXIT"
-              cat /tmp/migration.log
-
-              # 检查是否是"已经是最新"的情况
-              if grep -q "Target database is not up to date\|No changes in schema detected" /tmp/migration.log; then
-                echo "ℹ️ Database already up to date, continuing..."
-              elif grep -qi "already exists\|DuplicateTable" /tmp/migration.log; then
-                echo "ℹ️ Detected existing objects (likely previous partial migration). Stamping head..."
-                if docker compose run --rm backend alembic stamp head; then
-                  echo "✅ Stamped alembic version to head after detecting existing tables"
-                else
-                  echo "❌ Failed to stamp alembic version after duplicate-table detection"
-                  exit 1
-                fi
-              else
-                echo "❌ Migration failed with errors"
-                echo "📋 Please check migration logs above"
-                echo "🔧 Manual intervention may be required"
-                exit 1
-              fi
+              echo "❌ Migration failed"
+              echo "📋 Migration logs:"
+              docker compose logs backend --tail=50
+              exit 1
             fi
 
             echo "🚀 Step 6: Start all services"
