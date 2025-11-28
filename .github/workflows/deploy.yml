@@ -88,7 +88,7 @@ jobs:
             echo "✅ Deployment directory ready"
 
       - name: Copy files to server
-        uses: appleboy/scp-action@v1.0.0
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
