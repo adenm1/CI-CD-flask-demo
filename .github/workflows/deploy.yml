@@ -329,9 +329,16 @@ jobs:
 
             SIGNATURE=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "${{ secrets.PIPELINE_WEBHOOK_SECRET }}" | awk '{print $2}')
 
-            curl -X POST http://localhost/api/integrations/github \
-              -H "Content-Type: application/json" \
-              -H "X-Hub-Signature-256: sha256=$SIGNATURE" \
-              -d "$PAYLOAD" || echo "⚠️  Failed to report to dashboard"
-
-            echo "✅ Deployment status reported"
+            # Add timeout to prevent hanging, retry up to 3 times
+            for i in {1..3}; do
+              if timeout 10s curl -X POST http://localhost/api/integrations/github \
+                -H "Content-Type: application/json" \
+                -H "X-Hub-Signature-256: sha256=$SIGNATURE" \
+                -d "$PAYLOAD" 2>/dev/null; then
+                echo "✅ Deployment status reported"
+                break
+              else
+                echo "⚠️  Failed to report to dashboard (attempt $i/3)"
+                [ $i -lt 3 ] && sleep 2
+              fi
+            done
