@@ -1,13 +1,12 @@
 name: 🔒 Security Scanning
 
 on:
-  push:
-    branches: [ main, develop ]
   pull_request:
     branches: [ main ]
   schedule:
-    # Run security scan weekly
+    # Run security scan weekly on Sunday at midnight
     - cron: '0 0 * * 0'
+  workflow_dispatch:  # Allow manual trigger
 
 jobs:
   dependency-scan:
