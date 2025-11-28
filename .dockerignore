@@ -4,3 +4,6 @@ __pychare__/
 .git/
 .idea/
 .DS_Store
+.env
+.env.*
+!.env.example
