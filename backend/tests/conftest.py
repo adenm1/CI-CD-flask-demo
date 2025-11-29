@@ -7,9 +7,7 @@ import pytest
 
 
 @pytest.fixture
-def app(tmp_path):
-    db_file = tmp_path / "test.db"
-    os.environ["DATABASE_URL"] = f"sqlite:///{db_file}"
+def app():
     os.environ["ADMIN_USERNAME"] = "test_admin"
     os.environ["ADMIN_PASSWORD"] = "super-secret"
 

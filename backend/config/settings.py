@@ -134,6 +134,7 @@ class TestConfig(Config):
 
     TESTING = True
     DEBUG = True
+    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"  # Use in-memory SQLite database for tests
 
     # Disable features that require external services in testing
     CACHE_TYPE = "SimpleCache"  # Use in-memory cache instead of Redis
